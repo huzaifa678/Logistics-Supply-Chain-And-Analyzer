@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Logistics.Application;
 
+// Core composition root for loose coupling wiring dependencies (persistence classes, validation classes, domain services) into the Application layer.
 public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
