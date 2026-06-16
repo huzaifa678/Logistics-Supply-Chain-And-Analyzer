@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Logistics.Api/Logistics.Api.csproj" />
+    <Project Path="src/Logistics.Application/Logistics.Application.csproj" />
+    <Project Path="src/Logistics.Domain/Logistics.Domain.csproj" />
+    <Project Path="src/Logistics.Infrastructure/Logistics.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Logistics.Api.FunctionalTests/Logistics.Api.FunctionalTests.csproj" />
+    <Project Path="tests/Logistics.Application.UnitTests/Logistics.Application.UnitTests.csproj" />
+    <Project Path="tests/Logistics.Domain.UnitTests/Logistics.Domain.UnitTests.csproj" />
+    <Project Path="tests/Logistics.Infrastructure.IntegrationTests/Logistics.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
