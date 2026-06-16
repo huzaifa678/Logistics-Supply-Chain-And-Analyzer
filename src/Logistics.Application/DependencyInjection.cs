@@ -15,10 +15,14 @@ public static class DependencyInjection
     {
         var assembly = Assembly.GetExecutingAssembly();
 
+        // Register command/query handlers wiring up the CQRS pipeline
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
+        // Register FluentValidation validators and the pipeline behaviour that invokes them.
         services.AddValidatorsFromAssembly(assembly);
+        // Adds validation to validate commands/queries before hitting their handlers, returning errors if invalid.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
+        // finally adding domain services and their adapters to the persistence layer
         AddDomainServices(services);
 
         // Discover every domain-event handler so the dispatcher stays open for extension.
