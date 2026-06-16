@@ -1,0 +1,19 @@
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+.vs/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Test / coverage
+[Tt]est[Rr]esult*/
+*.coverage
+coverage*.json
+
+## OS
+.DS_Store
