@@ -18,8 +18,10 @@ public static class DependencyInjection
 
         // Register command/query handlers wiring up the CQRS pipeline
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
+
         // Register FluentValidation validators and the pipeline behaviour that invokes them.
         services.AddValidatorsFromAssembly(assembly);
+        
         // Adds validation to validate commands/queries before hitting their handlers, returning errors if invalid.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
