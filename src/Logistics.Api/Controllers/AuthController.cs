@@ -17,6 +17,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
     {
+        // Sends the Register command via MediatR to the Application layer, the dispatcher finds the assigned handler and executes the logic.
         var result = await sender.Send(
             new RegisterCommand(request.Email, request.Password, request.DisplayName), ct);
 
