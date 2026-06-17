@@ -1,5 +1,6 @@
 using Logistics.Application.Common.Interfaces;
 using Logistics.Application.Identity;
+using Confluent.SchemaRegistry;
 using Logistics.Application.Common.Messaging;
 using Logistics.Infrastructure.Identity;
 using Logistics.Infrastructure.Messaging;
@@ -66,6 +67,9 @@ public static class DependencyInjection
 
         if (kafkaSettings.Enabled)
         {
+            // Shared Schema Registry client (Avro serde uses it to register/fetch schemas).
+            services.AddSingleton<ISchemaRegistryClient>(_ =>
+                new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = kafkaSettings.SchemaRegistryUrl }));
             services.AddSingleton<IIntegrationEventPublisher, KafkaEventPublisher>();
             services.AddHostedService<KafkaIntegrationEventConsumer>();
         }
