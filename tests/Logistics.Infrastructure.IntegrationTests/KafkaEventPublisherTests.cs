@@ -1,49 +1,67 @@
+using Avro.Generic;
 using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
 using Logistics.Application.Shipments.IntegrationEvents;
 using Logistics.Infrastructure.Messaging.Kafka;
+using Logistics.Infrastructure.Messaging.Kafka.Serialization;
 using Microsoft.Extensions.Options;
-using Testcontainers.Kafka;
+using Testcontainers.Redpanda;
 using Xunit;
 
 namespace Logistics.Infrastructure.IntegrationTests;
 
-/// <summary>Publishes an integration event to real Kafka and consumes it back (needs Docker).</summary>
+/// <summary>
+/// End-to-end Avro + Schema Registry round-trip against real Redpanda (Kafka API + built-in
+/// Schema Registry in one container). Needs Docker.
+/// </summary>
 public class KafkaEventPublisherTests : IAsyncLifetime
 {
-    private readonly KafkaContainer _container = new KafkaBuilder("confluentinc/cp-kafka:7.6.1").Build();
+    private readonly RedpandaContainer _container = new RedpandaBuilder("redpandadata/redpanda:v24.2.7").Build();
 
     public Task InitializeAsync() => _container.StartAsync();
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task PublishAsync_IsConsumableFromTopic()
+    public async Task PublishAsync_ProducesAvroConsumableViaSchemaRegistry()
     {
-        var bootstrap = _container.GetBootstrapAddress().Replace("PLAINTEXT://", "");
+        var bootstrap = _container.GetBootstrapAddress();
+        var schemaRegistryUrl = _container.GetSchemaRegistryAddress();
+
+        using var schemaRegistry = new CachedSchemaRegistryClient(
+            new SchemaRegistryConfig { Url = schemaRegistryUrl });
+
         var settings = Options.Create(new KafkaSettings
         {
             BootstrapServers = bootstrap,
-            Topic = "test.events"
+            Topic = "test.events",
+            SchemaRegistryUrl = schemaRegistryUrl
         });
 
-        using (var publisher = new KafkaEventPublisher(settings))
+        using (var publisher = new KafkaEventPublisher(settings, schemaRegistry))
         {
-            await publisher.PublishAsync(
-                new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "weather"));
+            await publisher.PublishAsync(new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "weather"));
         }
 
-        using var consumer = new ConsumerBuilder<string, string>(new ConsumerConfig
+        using var consumer = new ConsumerBuilder<string, GenericRecord>(new ConsumerConfig
         {
             BootstrapServers = bootstrap,
             GroupId = "test-reader",
             AutoOffsetReset = AutoOffsetReset.Earliest
-        }).Build();
+        })
+            .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
+            .Build();
         consumer.Subscribe("test.events");
 
         var result = consumer.Consume(TimeSpan.FromSeconds(30));
         consumer.Close();
 
         Assert.NotNull(result);
-        Assert.Equal(nameof(ShipmentDelayedIntegrationEvent), result!.Message.Key);
-        Assert.Contains("TRK-1", result.Message.Value);
+        Assert.Equal(ShipmentDelayedAvro.RecordName, result!.Message.Value.Schema.Name);
+
+        var decoded = ShipmentDelayedAvro.FromRecord(result.Message.Value);
+        Assert.Equal("TRK-1", decoded.TrackingNumber);
+        Assert.Equal("weather", decoded.Reason);
     }
 }
