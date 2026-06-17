@@ -1,4 +1,10 @@
 using System.Runtime.CompilerServices;
+using Logistics.Application.Common.Interfaces;
+using Logistics.Domain.Entities;
+using Logistics.Domain.Enums;
+using Logistics.Infrastructure.Persistence.Neo4j.Cypher;
+using Logistics.Infrastructure.Persistence.Neo4j.Mappings;
+using Neo4j.Driver;
 
 namespace Logistics.Infrastructure.Persistence.Neo4j.Repositories;
 
