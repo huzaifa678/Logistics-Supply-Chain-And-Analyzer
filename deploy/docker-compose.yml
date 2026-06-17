@@ -44,11 +44,42 @@ services:
       Neo4j__Password: please-change-me
       RateLimiting__Enabled: "true"
       RateLimiting__RedisConnectionString: redis:6379
+      Messaging__Kafka__Enabled: "true"
+      Messaging__Kafka__BootstrapServers: redpanda:9092
+      Messaging__RabbitMq__Enabled: "true"
+      Messaging__RabbitMq__Host: rabbitmq
     depends_on:
       neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: logistics-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: logistics-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   neo4j_data:
