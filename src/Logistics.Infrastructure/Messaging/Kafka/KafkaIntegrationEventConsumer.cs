@@ -1,7 +1,10 @@
-using System.Text.Json;
+using Avro.Generic;
 using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
 using Logistics.Application.Common.Messaging;
-using Logistics.Application.Shipments.IntegrationEvents;
+using Logistics.Infrastructure.Messaging.Kafka.Serialization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,15 +12,14 @@ using Microsoft.Extensions.Options;
 namespace Logistics.Infrastructure.Messaging.Kafka;
 
 /// <summary>
-/// Consumes the integration-event topic and bridges relevant events to the notification bus:
-/// a <see cref="ShipmentDelayedIntegrationEvent"/> becomes a customer notification published to
-/// RabbitMQ. This is the Kafka → RabbitMQ hop of the pipeline.
-///
-/// Kafka's consumer is blocking, so the poll loop runs on a dedicated background thread
-/// (Task.Run) and commits offsets only after the notification is published (at-least-once).
+/// Consumes the Avro integration-event topic (decoding via the Schema Registry) and bridges
+/// relevant events to the notification bus: a delayed shipment becomes a RabbitMQ notification.
+/// This is the Kafka → RabbitMQ hop. Offsets are committed only after the notification is
+/// published (at-least-once).
 /// </summary>
 public sealed class KafkaIntegrationEventConsumer(
     INotificationPublisher notifications,
+    ISchemaRegistryClient schemaRegistry,
     IOptions<KafkaSettings> options,
     ILogger<KafkaIntegrationEventConsumer> logger) : BackgroundService
 {
@@ -36,15 +38,17 @@ public sealed class KafkaIntegrationEventConsumer(
             EnableAutoCommit = false
         };
 
-        using var consumer = new ConsumerBuilder<string, string>(config).Build();
+        using var consumer = new ConsumerBuilder<string, GenericRecord>(config)
+            .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
+            .Build();
         consumer.Subscribe(_settings.Topic);
-        logger.LogInformation("Kafka consumer subscribed to {Topic}.", _settings.Topic);
+        logger.LogInformation("Kafka (Avro) consumer subscribed to {Topic}.", _settings.Topic);
 
         try
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                ConsumeResult<string, string> result;
+                ConsumeResult<string, GenericRecord> result;
                 try
                 {
                     result = consumer.Consume(stoppingToken);
@@ -55,7 +59,7 @@ public sealed class KafkaIntegrationEventConsumer(
                     continue;
                 }
 
-                await HandleAsync(result.Message, stoppingToken);
+                await HandleAsync(result.Message.Value, stoppingToken);
                 consumer.Commit(result);
             }
         }
@@ -69,13 +73,12 @@ public sealed class KafkaIntegrationEventConsumer(
         }
     }
 
-    private async Task HandleAsync(Message<string, string> message, CancellationToken ct)
+    private async Task HandleAsync(GenericRecord record, CancellationToken ct)
     {
-        if (message.Key != nameof(ShipmentDelayedIntegrationEvent))
-            return; // not interested
+        if (record.Schema.Name != ShipmentDelayedAvro.RecordName)
+            return; // not an event we act on
 
-        var e = JsonSerializer.Deserialize<ShipmentDelayedIntegrationEvent>(message.Value);
-        if (e is null) return;
+        var e = ShipmentDelayedAvro.FromRecord(record);
 
         await notifications.PublishAsync(new NotificationMessage(
             Channel: "email",
