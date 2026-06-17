@@ -99,7 +99,7 @@ delivery there are two brokers, split by purpose and each behind a swappable por
 
 | Concern | Broker | Port | Why |
 |---|---|---|---|
-| Integration **event** backbone | **Kafka** | `IIntegrationEventPublisher` | Durable, partitioned, replayable log — fits supply-chain event streams. |
+| Integration **event** backbone | **Kafka + Avro/Schema Registry** | `IIntegrationEventPublisher` | Durable, partitioned, replayable log with a typed, versioned wire contract. |
 | **Notification** delivery | **RabbitMQ** | `INotificationPublisher` | Work queue with acks/requeue — fits one-off delivery to email/SMS/push. |
 
 End-to-end pipeline:
@@ -111,6 +111,12 @@ Shipment.MarkDelayed()  ──raises──▶  ShipmentDelayedEvent (domain)
              RabbitMqNotificationConsumer ▶ deliver (email/SMS/push)
 ```
 
+- **Avro + Schema Registry (Kafka).** Events are serialized as Avro against a Confluent-compatible
+  Schema Registry (Redpanda serves one on `:8081`). The serializer auto-registers the schema under
+  subject `{topic}-value` and stamps each payload with the schema id, so consumers decode against
+  the exact registered schema and **incompatible changes are rejected** at publish time. The schema
+  lives in `ShipmentDelayedAvro` and maps to/from the .NET event via a `GenericRecord` (no codegen).
+  In production, register schemas via CI rather than `AutoRegisterSchemas`.
 - **Swappable / DIP.** Handlers and consumers depend on the ports, not Kafka/RabbitMQ types. To
   move the event bus to RabbitMQ (or notifications to Kafka), add another implementation of the
   same interface and flip config — nothing else changes.

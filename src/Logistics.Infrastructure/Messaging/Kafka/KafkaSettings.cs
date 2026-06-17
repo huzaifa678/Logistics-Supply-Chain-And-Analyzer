@@ -9,4 +9,7 @@ public sealed class KafkaSettings
     public string BootstrapServers { get; set; } = "localhost:9092";
     public string Topic { get; set; } = "logistics.events";
     public string ConsumerGroup { get; set; } = "logistics-api";
+
+    /// <summary>Confluent-compatible Schema Registry endpoint (Redpanda serves one on :8081).</summary>
+    public string SchemaRegistryUrl { get; set; } = "http://localhost:8081";
 }

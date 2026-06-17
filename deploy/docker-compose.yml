@@ -46,6 +46,7 @@ services:
       RateLimiting__RedisConnectionString: redis:6379
       Messaging__Kafka__Enabled: "true"
       Messaging__Kafka__BootstrapServers: redpanda:9092
+      Messaging__Kafka__SchemaRegistryUrl: http://redpanda:8081
       Messaging__RabbitMq__Enabled: "true"
       Messaging__RabbitMq__Host: rabbitmq
     depends_on:
@@ -68,6 +69,7 @@ services:
       - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
     ports:
       - "9092:9092"
+      - "8081:8081"   # built-in Schema Registry
 
   rabbitmq:
     image: rabbitmq:3.13-management
