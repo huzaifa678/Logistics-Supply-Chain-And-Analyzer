@@ -1,3 +1,7 @@
+using Logistics.Domain.Entities;
+using Logistics.Domain.Enums;
+using Neo4j.Driver;
+
 namespace Logistics.Infrastructure.Persistence.Neo4j.Mappings;
 
 /// <summary>
