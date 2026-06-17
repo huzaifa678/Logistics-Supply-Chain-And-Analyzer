@@ -53,6 +53,16 @@ dotnet run --project src/Logistics.Api
 
 Set the Neo4j password via `Neo4j__Password` (env) or `appsettings.json` → `Neo4j:Password`.
 
+### Kafka broker for dev
+
+The base compose uses **Redpanda** (lightweight, Kafka-API + built-in Schema Registry). To run
+against **real Apache Kafka in KRaft mode** (no ZooKeeper) + a standalone Confluent Schema
+Registry instead, add the dev override — it swaps Redpanda out and re-points the API:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.kafka.yml up
+```
+
 ## Build & test
 
 ```bash
