@@ -100,7 +100,7 @@ What this codebase does:
 - **Route reads vs writes.** Reads use `AccessMode.Read` (can be served by replicas in a cluster); writes use `AccessMode.Write`. Use `ExecuteReadAsync` / `ExecuteWriteAsync`.
 - **Transaction functions = automatic retry.** `Execute{Read,Write}Async` retries transient errors (leader switches, deadlocks) with backoff. **Consume the cursor inside the delegate** (`ToListAsync` / `SingleAsync` / `ConsumeAsync`) — never return a live `IResultCursor`, it's closed when the transaction commits.
 - **Always parameterize Cypher.** Every query uses `$param` placeholders — never string interpolation. Prevents injection and lets the server cache query plans.
-- **Constraints & indexes up front.** `GraphConstraintsInitializer` creates uniqueness constraints and indexes idempotently on startup; traversal performance depends on them.
+- **Versioned migrations.** `GraphMigrationRunner` applies ordered, idempotent `IGraphMigration`s on startup and records each as a `(:__Migration)` node so it runs once per database — schema (constraints/indexes) and data backfills alike. Traversal performance depends on the indexes from `0001_initial_schema`.
 - **Atomic graph writes.** Linking writes (e.g. shipment → origin/destination) happen in a single Cypher statement so the graph is never left half-connected.
 - **Idempotency / upserts.** Prefer `MERGE` over `CREATE` where re-runs are possible; keep `CREATE` where uniqueness constraints already guard duplicates.
 
@@ -138,7 +138,7 @@ closest OGM: a typed fluent query builder with automatic node↔POCO mapping. We
 
 **One connection pool.** `Neo4jGraphClientProvider` constructs `BoltGraphClient` over the *same*
 `IDriver` that `Neo4jContext` owns (`new BoltGraphClient(driver, …)`), so the ORM and driver paths
-do not open separate pools. The client is connected once at startup by `GraphConstraintsInitializer`.
+do not open separate pools. The client is connected once at startup by `GraphMigrationRunner`.
 
 > Trade-off, stated plainly: the ORM removes mapping boilerplate for CRUD but can't stream and
 > hides traversal Cypher — hence CRUD-only. Route/Shipment CRUD can move to the ORM the same way;
