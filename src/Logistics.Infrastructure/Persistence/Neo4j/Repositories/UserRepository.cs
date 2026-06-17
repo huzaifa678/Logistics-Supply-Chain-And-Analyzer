@@ -1,3 +1,8 @@
+using Logistics.Application.Identity;
+using Logistics.Domain.Identity;
+using Logistics.Infrastructure.Persistence.Neo4j.Graph;
+using Neo4jClient;
+
 namespace Logistics.Infrastructure.Persistence.Neo4j.Repositories;
 
 /// <summary>
