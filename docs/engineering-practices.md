@@ -90,9 +90,40 @@ What this codebase does:
 
 ### Where you *would* add more workers
 - Scale the processor to N concurrent consumers by reading the channel from multiple loops (set `SingleReader = false`).
-- Replace the in-memory channel with an outbox table + broker (e.g. RabbitMQ/Kafka) for durability — only the `IDomainEventQueue` implementation changes.
+- For cross-instance durability, the in-memory channel can still be fronted by a transactional outbox; the broker integration below already gives durable cross-service delivery.
 
-## 5. Neo4j read/write best practices
+## 5. Message brokers (Kafka + RabbitMQ)
+
+The in-process channel (§4) dispatches events **within** this service. For durable, cross-service
+delivery there are two brokers, split by purpose and each behind a swappable port:
+
+| Concern | Broker | Port | Why |
+|---|---|---|---|
+| Integration **event** backbone | **Kafka** | `IIntegrationEventPublisher` | Durable, partitioned, replayable log — fits supply-chain event streams. |
+| **Notification** delivery | **RabbitMQ** | `INotificationPublisher` | Work queue with acks/requeue — fits one-off delivery to email/SMS/push. |
+
+End-to-end pipeline:
+
+```
+Shipment.MarkDelayed()  ──raises──▶  ShipmentDelayedEvent (domain)
+   in-process worker ▶ PublishShipmentDelayedHandler ▶ IIntegrationEventPublisher (Kafka topic)
+        KafkaIntegrationEventConsumer ▶ INotificationPublisher (RabbitMQ queue)
+             RabbitMqNotificationConsumer ▶ deliver (email/SMS/push)
+```
+
+- **Swappable / DIP.** Handlers and consumers depend on the ports, not Kafka/RabbitMQ types. To
+  move the event bus to RabbitMQ (or notifications to Kafka), add another implementation of the
+  same interface and flip config — nothing else changes.
+- **Safe default off.** `Messaging:Kafka:Enabled` / `Messaging:RabbitMq:Enabled` default to
+  `false`; disabled buses bind `NoOp*Publisher` so local dev and tests need no broker (same
+  pattern as the rate limiter).
+- **Delivery semantics.** Kafka consumer commits offsets only after the notification is published;
+  the RabbitMQ consumer acks only after delivery and nacks+requeues on failure — at-least-once
+  end to end. Handlers should therefore be idempotent.
+- **Connections.** One Kafka producer and one RabbitMQ connection per app lifetime (singletons);
+  RabbitMQ channels are created per publish/consumer.
+
+## 6. Neo4j read/write best practices
 
 - **One driver, app-lifetime, singleton.** `Neo4jContext` wraps a single thread-safe `IDriver`. Sessions are **short-lived**, created per unit of work, and disposed with `await using`.
 - **Connection pooling (tuned).** The driver multiplexes all sessions over one pool, configured in `Neo4jContext` from `Neo4jSettings`: `MaxConnectionPoolSize` (size to concurrency), `ConnectionAcquisitionTimeout` (fail fast when saturated), `ConnectionTimeout`, and `MaxConnectionLifetime` (recycle for rolling restarts / LB changes). Never open a driver per request — that defeats pooling.
@@ -104,7 +135,7 @@ What this codebase does:
 - **Atomic graph writes.** Linking writes (e.g. shipment → origin/destination) happen in a single Cypher statement so the graph is never left half-connected.
 - **Idempotency / upserts.** Prefer `MERGE` over `CREATE` where re-runs are possible; keep `CREATE` where uniqueness constraints already guard duplicates.
 
-## 6. Distributed rate limiting (Redis token bucket)
+## 7. Distributed rate limiting (Redis token bucket)
 
 Per-client limiting that's correct across **multiple API instances** — an in-memory limiter
 would let N replicas each allow the full quota.
@@ -115,7 +146,7 @@ would let N replicas each allow the full quota.
 - **Responses.** Denied requests get `429` + `Retry-After`; allowed requests get an `X-RateLimit-Remaining` header.
 - **Pluggable + safe default.** Behind `IRateLimiter` (Dependency Inversion). `RateLimiting:Enabled=false` swaps in a `NoOpRateLimiter` so local dev / tests need no Redis. The Redis connection uses a single app-lifetime `IConnectionMultiplexer` (its own pool).
 
-## 7. Driver choice (the JDBC / JPA question)
+## 8. Driver choice (the JDBC / JPA question)
 
 | Java world | .NET equivalent | Used for |
 |---|---|---|
@@ -144,7 +175,7 @@ do not open separate pools. The client is connected once at startup by `GraphMig
 > hides traversal Cypher — hence CRUD-only. Route/Shipment CRUD can move to the ORM the same way;
 > analytics and streaming should stay on the driver.
 
-## 8. Async checklist (for new code)
+## 9. Async checklist (for new code)
 
 - [ ] Accept and pass a `CancellationToken` end to end.
 - [ ] `await` every Task; never block (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`).

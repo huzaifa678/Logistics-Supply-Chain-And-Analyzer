@@ -1,7 +1,10 @@
 using Logistics.Application.Common.Interfaces;
 using Logistics.Application.Identity;
+using Logistics.Application.Common.Messaging;
 using Logistics.Infrastructure.Identity;
 using Logistics.Infrastructure.Messaging;
+using Logistics.Infrastructure.Messaging.Kafka;
+using Logistics.Infrastructure.Messaging.RabbitMq;
 using Logistics.Infrastructure.Persistence.Neo4j;
 using Logistics.Infrastructure.Persistence.Neo4j.Migrations;
 using Logistics.Infrastructure.Persistence.Neo4j.Repositories;
@@ -44,6 +47,7 @@ public static class DependencyInjection
         services.AddHostedService<DomainEventProcessor>();
 
         AddRateLimiting(services, configuration);
+        AddMessaging(services, configuration);
 
         // Versioned graph migrations (schema + data), applied in order on startup.
         services.AddSingleton<IGraphMigration, M0001_InitialSchema>();
@@ -51,6 +55,40 @@ public static class DependencyInjection
         services.AddHostedService<GraphMigrationRunner>();
 
         return services;
+    }
+
+    private static void AddMessaging(IServiceCollection services, IConfiguration configuration)
+    {
+        // --- Kafka: integration-event backbone ---
+        var kafka = configuration.GetSection(KafkaSettings.SectionName);
+        services.Configure<KafkaSettings>(kafka);
+        var kafkaSettings = kafka.Get<KafkaSettings>() ?? new KafkaSettings();
+
+        if (kafkaSettings.Enabled)
+        {
+            services.AddSingleton<IIntegrationEventPublisher, KafkaEventPublisher>();
+            services.AddHostedService<KafkaIntegrationEventConsumer>();
+        }
+        else
+        {
+            services.AddSingleton<IIntegrationEventPublisher, NoOpIntegrationEventPublisher>();
+        }
+
+        // --- RabbitMQ: notification bus ---
+        var rabbit = configuration.GetSection(RabbitMqSettings.SectionName);
+        services.Configure<RabbitMqSettings>(rabbit);
+        var rabbitSettings = rabbit.Get<RabbitMqSettings>() ?? new RabbitMqSettings();
+
+        if (rabbitSettings.Enabled)
+        {
+            services.AddSingleton<RabbitMqConnection>();
+            services.AddSingleton<INotificationPublisher, RabbitMqNotificationPublisher>();
+            services.AddHostedService<RabbitMqNotificationConsumer>();
+        }
+        else
+        {
+            services.AddSingleton<INotificationPublisher, NoOpNotificationPublisher>();
+        }
     }
 
     private static void AddRateLimiting(IServiceCollection services, IConfiguration configuration)
