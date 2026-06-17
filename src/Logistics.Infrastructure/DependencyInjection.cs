@@ -3,7 +3,7 @@ using Logistics.Application.Identity;
 using Logistics.Infrastructure.Identity;
 using Logistics.Infrastructure.Messaging;
 using Logistics.Infrastructure.Persistence.Neo4j;
-using Logistics.Infrastructure.Persistence.Neo4j.Constraints;
+using Logistics.Infrastructure.Persistence.Neo4j.Migrations;
 using Logistics.Infrastructure.Persistence.Neo4j.Repositories;
 using Logistics.Infrastructure.RateLimiting;
 using Microsoft.Extensions.Configuration;
@@ -45,8 +45,10 @@ public static class DependencyInjection
 
         AddRateLimiting(services, configuration);
 
-        // Ensure constraints/indexes exist on startup.
-        services.AddHostedService<GraphConstraintsInitializer>();
+        // Versioned graph migrations (schema + data), applied in order on startup.
+        services.AddSingleton<IGraphMigration, M0001_InitialSchema>();
+        services.AddSingleton<IGraphMigration, M0002_DefaultWarehouseCapacity>();
+        services.AddHostedService<GraphMigrationRunner>();
 
         return services;
     }
