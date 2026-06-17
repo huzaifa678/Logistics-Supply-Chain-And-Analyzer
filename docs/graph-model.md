@@ -67,9 +67,24 @@ MATCH (s:Shipment)-[r:ORIGINATES_AT|DESTINED_FOR]->(w:Warehouse)
 RETURN w.name, count(s) AS volume ORDER BY volume DESC LIMIT 10;
 ```
 
-## Constraints & indexes
+## Migrations (schema + data)
 
-Created on startup (`GraphConstraintsInitializer`):
+Schema and data are versioned through ordered, idempotent **graph migrations** applied on
+startup by `GraphMigrationRunner` (Neo4j has no built-in migration engine). Each applied
+migration is recorded as a `(:__Migration {id, appliedAt})` node, so it runs once per database.
+
+| Id | Type | What it does |
+|---|---|---|
+| `0001_initial_schema` | schema | Uniqueness constraints + indexes (Warehouse, Shipment, User, RefreshToken) |
+| `0002_default_warehouse_capacity` | data | Backfills `capacityUnits = 0` on warehouses missing it |
+
+To add one: implement `IGraphMigration` with the next `NNNN_*` id, register it in
+`AddInfrastructure`, and keep it **idempotent** (`IF NOT EXISTS`, `MERGE`, `WHERE ... IS NULL`) —
+the body and its `__Migration` record commit in separate transactions, so a crash between them
+must be safe to re-run. Keep each migration schema-only or data-only (Neo4j forbids mixing both
+in one transaction).
+
+Example constraint (from `0001`):
 
 ```cypher
 CREATE CONSTRAINT warehouse_id IF NOT EXISTS FOR (w:Warehouse) REQUIRE w.id IS UNIQUE;
