@@ -91,17 +91,17 @@ docker build -t logistics-frontend .   # multi-stage image running the SSR Node 
 
 ### Kubernetes (Helm)
 
-`deploy/helm/logistics` deploys the API + frontend and pulls Neo4j, Redis, RabbitMQ and Kafka as
+`deploy/logistics-chart` deploys the API + frontend and pulls Neo4j, Redis, RabbitMQ and Kafka as
 chart **dependencies**. The API ships readiness (`/health/ready`, checks Neo4j) and liveness
 (`/health/live`) probes.
 
 ```bash
-helm dependency update deploy/helm/logistics
-helm install logistics deploy/helm/logistics \
+helm dependency update deploy/logistics-chart
+helm install logistics deploy/logistics-chart \
   --set secrets.neo4jPassword=<pass> --set neo4j.neo4j.password=<pass>
 ```
 
-See [deploy/helm/logistics/README.md](deploy/helm/logistics/README.md) for options and production
+See [deploy/logistics-chart/README.md](deploy/logistics-chart/README.md) for options and production
 hardening notes.
 
 ## Build & test
