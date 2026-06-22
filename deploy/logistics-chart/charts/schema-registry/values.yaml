@@ -1,0 +1,22 @@
+# Enabled by the parent chart (umbrella sets `schema-registry.enabled`).
+enabled: false
+
+image:
+  repository: confluentinc/cp-schema-registry
+  tag: "7.7.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+port: 8081
+
+# Kafka bootstrap the registry stores its schemas in. Empty -> "<release>-kafka:9092"
+# (the Bitnami Kafka subchart service for this release).
+kafkaBootstrap: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

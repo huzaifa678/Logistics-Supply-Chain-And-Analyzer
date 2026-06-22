@@ -1,0 +1,136 @@
+# ----------------------------------------------------------------------------
+# First-party workloads (our images get templates under templates/).
+# ----------------------------------------------------------------------------
+api:
+  image:
+    repository: logistics-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  # Readiness = Neo4j reachable; liveness = process up. See the API's /health endpoints.
+  probes:
+    readiness:
+      path: /health/ready
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    liveness:
+      path: /health/live
+      initialDelaySeconds: 20
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    startup:
+      path: /health/live
+      periodSeconds: 5
+      failureThreshold: 30
+
+frontend:
+  image:
+    repository: logistics-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  containerPort: 4000
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  probes:
+    readiness:
+      path: /
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    liveness:
+      path: /
+      initialDelaySeconds: 10
+      periodSeconds: 15
+
+ingress:
+  enabled: true
+  className: nginx
+  host: logistics.local
+  annotations: {}
+
+# ----------------------------------------------------------------------------
+# Application config consumed by the API (rendered into a ConfigMap + Secret).
+# Hosts default to the subchart service names for this release; override if needed.
+# ----------------------------------------------------------------------------
+config:
+  aspnetcoreEnvironment: Production
+  neo4j:
+    host: ""        # default: <release>-neo4j
+    database: neo4j
+  redis:
+    host: ""        # default: <release>-redis-master
+  rabbitmq:
+    enabled: true
+    host: ""        # default: <release>-rabbitmq
+  kafka:
+    enabled: false  # enable once a Schema Registry is available (Avro events)
+    bootstrap: ""   # default: <release>-kafka:9092
+    schemaRegistryUrl: ""
+  rateLimiting:
+    enabled: true
+
+# Secrets (rendered into a Secret). REPLACE for production; keep in sync with subchart auth.
+secrets:
+  neo4jPassword: "please-change-me"
+  jwtSigningKey: "dev-only-signing-key-change-me-min-32-bytes-long!!"
+  rabbitmqPassword: "guest"
+
+# ----------------------------------------------------------------------------
+# Dependency subcharts (datastores & brokers). Values below are passed through.
+# Dev-grade defaults — harden (auth, persistence, replicas) for production.
+# ----------------------------------------------------------------------------
+neo4j:
+  enabled: true
+  neo4j:
+    name: neo4j
+    password: "please-change-me"   # must match secrets.neo4jPassword
+  volumes:
+    data:
+      mode: defaultStorageClass
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false                 # dev: no Redis password
+
+rabbitmq:
+  enabled: true
+  auth:
+    username: guest
+    password: "guest"              # must match secrets.rabbitmqPassword
+
+kafka:
+  enabled: false
+  controller:
+    replicaCount: 1
+  listeners:
+    client:
+      protocol: PLAINTEXT          # dev: no SASL/TLS
+
+# Local Schema Registry subchart (charts/schema-registry). Enable alongside kafka for Avro events.
+schema-registry:
+  enabled: false
+  # kafkaBootstrap defaults to "<release>-kafka:9092"; override only if Kafka runs elsewhere.
