@@ -1,0 +1,24 @@
+{{ .Chart.Name }} {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}".
+
+Workloads:
+  - API       : {{ include "logistics.fullname" . }}-api        (probes: /health/ready, /health/live)
+  - Frontend  : {{ include "logistics.fullname" . }}-frontend
+
+Dependencies (enabled):
+{{- if .Values.neo4j.enabled }}    - Neo4j     @ {{ include "logistics.neo4jHost" . }}:7687{{ end }}
+{{- if .Values.redis.enabled }}    - Redis     @ {{ include "logistics.redisHost" . }}:6379{{ end }}
+{{- if .Values.rabbitmq.enabled }} - RabbitMQ  @ {{ include "logistics.rabbitmqHost" . }}:5672{{ end }}
+{{- if .Values.kafka.enabled }}    - Kafka     @ {{ include "logistics.kafkaBootstrap" . }}{{ end }}
+
+{{- if .Values.ingress.enabled }}
+
+Reach the app at: http://{{ .Values.ingress.host }}
+  (point {{ .Values.ingress.host }} at your ingress controller, e.g. add it to /etc/hosts)
+{{- else }}
+
+Ingress disabled — port-forward to try it:
+  kubectl port-forward svc/{{ include "logistics.fullname" . }}-frontend 8080:{{ .Values.frontend.service.port }}
+{{- end }}
+
+Before installing, fetch the dependency charts:
+  helm dependency update deploy/helm/logistics
