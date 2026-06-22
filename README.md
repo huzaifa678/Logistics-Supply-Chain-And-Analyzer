@@ -63,6 +63,47 @@ Registry instead, add the dev override — it swaps Redpanda out and re-points t
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.kafka.yml up
 ```
 
+### Frontend (Angular)
+
+`frontend/` is an Angular 22 SPA (standalone components, signals, Tailwind, SSR) that consumes
+the API with JWT auth. Requires **Node ≥ 22.22.3** (or ≥ 24.15.0).
+
+```bash
+cd frontend
+npm install
+npm start            # dev server on http://localhost:4200, proxies /api → http://localhost:8080
+```
+
+The app calls the API with **relative `/api`** paths — `proxy.conf.json` forwards them in dev; in
+prod an ingress/reverse proxy routes `/api` to the API (so no CORS needed). Layout:
+
+```
+frontend/src/app/
+  core/        # models, services (auth/shipment/route), interceptors (auth/error), guard
+  features/    # auth/login, shell, dashboard, shipments, routes (lazy-loaded, route-guarded)
+```
+
+Build / containerize:
+```bash
+npm run build                          # SSR build → dist/frontend
+docker build -t logistics-frontend .   # multi-stage image running the SSR Node server (port 4000)
+```
+
+### Kubernetes (Helm)
+
+`deploy/helm/logistics` deploys the API + frontend and pulls Neo4j, Redis, RabbitMQ and Kafka as
+chart **dependencies**. The API ships readiness (`/health/ready`, checks Neo4j) and liveness
+(`/health/live`) probes.
+
+```bash
+helm dependency update deploy/helm/logistics
+helm install logistics deploy/helm/logistics \
+  --set secrets.neo4jPassword=<pass> --set neo4j.neo4j.password=<pass>
+```
+
+See [deploy/helm/logistics/README.md](deploy/helm/logistics/README.md) for options and production
+hardening notes.
+
 ## Build & test
 
 ```bash
