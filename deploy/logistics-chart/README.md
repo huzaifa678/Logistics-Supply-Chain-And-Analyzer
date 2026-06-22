@@ -25,14 +25,14 @@ Probe timings are tunable under `api.probes.*` in `values.yaml`.
 ## Install
 ```bash
 # 1. Fetch the dependency charts into charts/
-helm dependency update deploy/helm/logistics
+helm dependency update deploy/logistics-chart
 
 # 2. Build & load your images (or push to a registry and set api.image / frontend.image)
 docker build -t logistics-api:latest  -f deploy/Dockerfile .
 docker build -t logistics-frontend:latest ./frontend
 
 # 3. Install
-helm install logistics deploy/helm/logistics \
+helm install logistics deploy/logistics-chart \
   --set secrets.neo4jPassword='<strong-pass>' \
   --set neo4j.neo4j.password='<strong-pass>' \
   --set secrets.jwtSigningKey='<32+ byte key>'
@@ -40,7 +40,7 @@ helm install logistics deploy/helm/logistics \
 
 Enable the Kafka event bus (needs a Schema Registry for Avro):
 ```bash
-helm upgrade logistics deploy/helm/logistics \
+helm upgrade logistics deploy/logistics-chart \
   --set kafka.enabled=true \
   --set config.kafka.enabled=true \
   --set config.kafka.schemaRegistryUrl='http://<schema-registry>:8081'
