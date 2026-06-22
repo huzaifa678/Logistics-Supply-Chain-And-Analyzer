@@ -7,7 +7,7 @@ appVersion: "1.0.0"
 
 # Datastores and brokers are pulled in as upstream subcharts (no hand-written manifests).
 # Each is gated by a `*.enabled` value so you only deploy what you use.
-# Run `helm dependency update deploy/helm/logistics` to fetch these into charts/.
+# Run `helm dependency update deploy/logistics-chart` to fetch these into charts/.
 dependencies:
   - name: neo4j
     version: "5.26.2"
