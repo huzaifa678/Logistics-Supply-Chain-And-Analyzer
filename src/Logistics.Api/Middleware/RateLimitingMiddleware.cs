@@ -13,6 +13,13 @@ public sealed class RateLimitingMiddleware(RequestDelegate next, IRateLimiter li
 {
     public async Task InvokeAsync(HttpContext context)
     {
+        // Never rate-limit health probes — the kubelet hits them frequently from one IP.
+        if (context.Request.Path.StartsWithSegments("/health"))
+        {
+            await next(context);
+            return;
+        }
+
         var partitionKey = ResolvePartitionKey(context);
         var decision = await limiter.AcquireAsync(partitionKey, context.RequestAborted);
 
