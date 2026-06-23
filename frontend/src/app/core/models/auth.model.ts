@@ -1,3 +1,6 @@
+/** Mirrors the backend Role enum (Logistics.Domain.Identity.Role), serialized as its name. */
+export type Role = 'Viewer' | 'Operator' | 'Admin';
+
 export interface LoginRequest {
   email: string;
   password: string;
