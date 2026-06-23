@@ -10,27 +10,20 @@ data:
 
   Neo4j__Uri: "neo4j://{{ include "logistics.neo4jHost" . }}:7687"
   Neo4j__Database: {{ .Values.config.neo4j.database | quote }}
+  # Non-secret: the Neo4j username is fixed; the password comes from the shared Secret.
+  Neo4j__Username: "neo4j"
 
   RateLimiting__Enabled: {{ .Values.config.rateLimiting.enabled | quote }}
   RateLimiting__RedisConnectionString: "{{ include "logistics.redisHost" . }}:6379"
 
   Messaging__RabbitMq__Enabled: {{ .Values.config.rabbitmq.enabled | quote }}
   Messaging__RabbitMq__Host: {{ include "logistics.rabbitmqHost" . | quote }}
+  Messaging__RabbitMq__Username: {{ .Values.rabbitmq.auth.username | quote }}
 
   Messaging__Kafka__Enabled: {{ .Values.config.kafka.enabled | quote }}
   Messaging__Kafka__BootstrapServers: {{ include "logistics.kafkaBootstrap" . | quote }}
   Messaging__Kafka__SchemaRegistryUrl: {{ include "logistics.schemaRegistryUrl" . | quote }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "logistics.fullname" . }}-api
-  labels:
-    {{- include "logistics.labels" . | nindent 4 }}
-type: Opaque
-stringData:
-  Neo4j__Username: "neo4j"
-  Neo4j__Password: {{ .Values.secrets.neo4jPassword | quote }}
-  Auth__SigningKey: {{ .Values.secrets.jwtSigningKey | quote }}
-  Messaging__RabbitMq__Username: {{ .Values.rabbitmq.auth.username | quote }}
-  Messaging__RabbitMq__Password: {{ .Values.secrets.rabbitmqPassword | quote }}
+
+# Secrets (Neo4j__Password, Messaging__RabbitMq__Password, Auth__SigningKey) are injected
+# into the API container via secretKeyRef from the shared Opaque Secret — see secrets.yaml
+# and api-deployment.yaml. They are intentionally NOT in this ConfigMap.

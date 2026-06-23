@@ -19,13 +19,15 @@ dependencies:
     repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: redis.enabled
 
+  # NOTE: Bitnami's free OCI registry only retains recent versions (Aug 2025 migration);
+  # older pins (rabbitmq 15.5.5, kafka 32.4.5) are gone. Bumped to available versions.
   - name: rabbitmq
-    version: "15.5.5"
+    version: "16.0.14"
     repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: rabbitmq.enabled
 
   - name: kafka
-    version: "32.4.5"
+    version: "32.4.3"
     repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: kafka.enabled
 

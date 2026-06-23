@@ -38,17 +38,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      Neo4j__Uri: bolt://neo4j:7687
-      Neo4j__Username: neo4j
-      Neo4j__Password: please-change-me
-      RateLimiting__Enabled: "true"
-      RateLimiting__RedisConnectionString: redis:6379
-      Messaging__Kafka__Enabled: "true"
-      Messaging__Kafka__BootstrapServers: redpanda:9092
-      Messaging__Kafka__SchemaRegistryUrl: http://redpanda:8081
-      Messaging__RabbitMq__Enabled: "true"
-      Messaging__RabbitMq__Host: rabbitmq
+      # Infra URLs come from appsettings.Docker.json (service names on this network).
+      # Override any single value here if needed — env vars still win over the JSON file.
+      ASPNETCORE_ENVIRONMENT: Docker
     depends_on:
       neo4j:
         condition: service_healthy
