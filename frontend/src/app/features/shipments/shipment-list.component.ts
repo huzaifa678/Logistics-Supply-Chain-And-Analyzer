@@ -1,8 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ShipmentService } from '../../core/services/shipment.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Shipment, ShipmentStatus } from '../../core/models/shipment.model';
+
+type Transition = 'Dispatch' | 'Delay' | 'Deliver' | 'Cancel';
 
 @Component({
   selector: 'app-shipment-list',
@@ -40,6 +43,10 @@ import { Shipment, ShipmentStatus } from '../../core/models/shipment.model';
               <th class="px-4 py-2 font-medium">Mode</th>
               <th class="px-4 py-2 font-medium">Weight (kg)</th>
               <th class="px-4 py-2 font-medium">Created</th>
+              <!-- Operator/Admin-only column (the API also enforces this on POST /status). -->
+              @if (canManage()) {
+                <th class="px-4 py-2 font-medium">Actions</th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -50,6 +57,24 @@ import { Shipment, ShipmentStatus } from '../../core/models/shipment.model';
                 <td class="px-4 py-2">{{ s.mode }}</td>
                 <td class="px-4 py-2">{{ s.weightKg }}</td>
                 <td class="px-4 py-2">{{ s.createdAt | date: 'short' }}</td>
+                @if (canManage()) {
+                  <td class="px-4 py-2">
+                    <div class="flex gap-2">
+                      @for (t of transitionsFor(s.status); track t) {
+                        <button
+                          type="button"
+                          (click)="act(s, t)"
+                          [disabled]="acting()"
+                          class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          {{ t }}
+                        </button>
+                      } @empty {
+                        <span class="text-xs text-gray-400">—</span>
+                      }
+                    </div>
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -60,6 +85,11 @@ import { Shipment, ShipmentStatus } from '../../core/models/shipment.model';
 })
 export class ShipmentListComponent {
   private readonly shipments$ = inject(ShipmentService);
+  private readonly auth = inject(AuthService);
+
+  /** Status-change controls are visible only to Operator/Admin (mirrors the API's [Authorize]). */
+  protected readonly canManage = computed(() => this.auth.hasRole('Operator', 'Admin'));
+  protected readonly acting = signal(false);
 
   protected readonly statuses = [
     { value: ShipmentStatus.Created, label: 'Created' },
@@ -89,6 +119,36 @@ export class ShipmentListComponent {
       error: () => {
         this.error.set('Failed to load shipments.');
         this.loading.set(false);
+      },
+    });
+  }
+
+  /** Valid status transitions for a shipment, by its current status (status arrives as its name). */
+  protected transitionsFor(status: string): Transition[] {
+    switch (status) {
+      case 'Created':
+        return ['Dispatch', 'Cancel'];
+      case 'InTransit':
+        return ['Deliver', 'Delay'];
+      case 'Delayed':
+        return ['Deliver'];
+      default:
+        return [];
+    }
+  }
+
+  protected act(shipment: Shipment, transition: Transition): void {
+    this.acting.set(true);
+    this.error.set(null);
+    this.shipments$.updateStatus(shipment.id, transition).subscribe({
+      next: () => {
+        this.acting.set(false);
+        this.load();
+      },
+      error: () => {
+        // A 403 here means the token lacks the role — the UI gate and the API gate disagree.
+        this.error.set('Status update failed (you may not have permission).');
+        this.acting.set(false);
       },
     });
   }
