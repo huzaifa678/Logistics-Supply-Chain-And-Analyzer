@@ -46,6 +46,14 @@ import { AuthService } from '../../core/services/auth.service';
         >
           {{ loading() ? 'Signing in…' : 'Sign in' }}
         </button>
+
+        <button
+          type="button"
+          class="px-4 py-2 text-sm text-gray-600 hover:underline"
+          (click)="router.navigate(['/register'])"
+        >
+          If not registered click here
+        </button>
       </form>
     </div>
   `,
@@ -53,7 +61,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
+  public readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly loading = signal(false);
