@@ -17,3 +17,6 @@ coverage*.json
 
 ## OS
 .DS_Store
+
+## Helm: vendored dependency archives (reproducible from Chart.lock via `helm dependency build`)
+deploy/logistics-chart/charts/*.tgz
