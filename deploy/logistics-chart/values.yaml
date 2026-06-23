@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------
 api:
   image:
-    repository: logistics-api
+    repository: huzaifagill234/logistics-api
     tag: latest
     pullPolicy: IfNotPresent
   replicaCount: 2
@@ -39,7 +39,7 @@ api:
 
 frontend:
   image:
-    repository: logistics-frontend
+    repository: huzaifagill234/logistics-frontend
     tag: latest
     pullPolicy: IfNotPresent
   replicaCount: 2
@@ -85,17 +85,25 @@ config:
     enabled: true
     host: ""        # default: <release>-rabbitmq
   kafka:
-    enabled: false  # enable once a Schema Registry is available (Avro events)
+    enabled: true   # Avro event bus on; schema-registry subchart is enabled below
     bootstrap: ""   # default: <release>-kafka:9092
-    schemaRegistryUrl: ""
+    schemaRegistryUrl: ""  # default: http://<release>-schema-registry:8081
   rateLimiting:
     enabled: true
 
 # Secrets (rendered into a Secret). REPLACE for production; keep in sync with subchart auth.
+# All credentials live in ONE Opaque Secret (templates/secrets.yaml). The API reads from it
+# via secretKeyRef and the subcharts via their *.existingSecret settings below — so no plaintext
+# password is ever passed into a subchart's values. REPLACE these for production (or bring your
+# own Secret: set create=false and point existingSecretName at it).
 secrets:
+  create: true
+  # FIXED name (subchart values can't reference .Release.Name). Change only if you bring your own.
+  existingSecretName: logistics-credentials
   neo4jPassword: "please-change-me"
-  jwtSigningKey: "dev-only-signing-key-change-me-min-32-bytes-long!!"
   rabbitmqPassword: "guest"
+  rabbitmqErlangCookie: "dev-only-erlang-cookie-change-me"
+  jwtSigningKey: "dev-only-signing-key-change-me-min-32-bytes-long!!"
 
 # ----------------------------------------------------------------------------
 # Dependency subcharts (datastores & brokers). Values below are passed through.
@@ -103,9 +111,15 @@ secrets:
 # ----------------------------------------------------------------------------
 neo4j:
   enabled: true
+  # Skip the cluster lookup that validates passwordFromSecret exists — our Secret is created
+  # in the SAME release, so it isn't present when neo4j's templates render (and lookups don't
+  # run under `helm template`/dry-run at all).
+  disableLookups: true
   neo4j:
     name: neo4j
-    password: "please-change-me"   # must match secrets.neo4jPassword
+    # Password sourced from the shared Secret (key NEO4J_AUTH = "neo4j/<pass>").
+    # Do NOT also set neo4j.password — the chart rejects setting both.
+    passwordFromSecret: logistics-credentials
   volumes:
     data:
       mode: defaultStorageClass
@@ -120,17 +134,16 @@ rabbitmq:
   enabled: true
   auth:
     username: guest
-    password: "guest"              # must match secrets.rabbitmqPassword
+    existingPasswordSecret: logistics-credentials       # key: rabbitmq-password
+    existingErlangSecret: logistics-credentials          # key: rabbitmq-erlang-cookie
 
 kafka:
-  enabled: false
+  enabled: true                    
   controller:
     replicaCount: 1
   listeners:
     client:
       protocol: PLAINTEXT          # dev: no SASL/TLS
 
-# Local Schema Registry subchart (charts/schema-registry). Enable alongside kafka for Avro events.
 schema-registry:
-  enabled: false
-  # kafkaBootstrap defaults to "<release>-kafka:9092"; override only if Kafka runs elsewhere.
+  enabled: true
