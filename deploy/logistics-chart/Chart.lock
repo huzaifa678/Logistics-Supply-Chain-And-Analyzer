@@ -1,0 +1,18 @@
+dependencies:
+- name: neo4j
+  repository: https://helm.neo4j.com/neo4j
+  version: 5.26.2
+- name: redis
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 20.13.4
+- name: rabbitmq
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 16.0.14
+- name: kafka
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 32.4.3
+- name: schema-registry
+  repository: file://charts/schema-registry
+  version: 0.1.0
+digest: sha256:6764c2288de0918c501b88cdde9020aeaaf7778438e48ffd5fd81659a037e1a9
+generated: "2026-06-23T16:17:49.232345+05:00"
