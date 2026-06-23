@@ -17,6 +17,7 @@ spec:
       annotations:
         # Roll pods when config/secret change.
         checksum/config: {{ include (print $.Template.BasePath "/api-config.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
     spec:
       containers:
         - name: api
@@ -28,8 +29,23 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "logistics.fullname" . }}-api
-            - secretRef:
-                name: {{ include "logistics.fullname" . }}-api
+          # Sensitive settings injected from the shared Opaque Secret (see secrets.yaml).
+          env:
+            - name: Neo4j__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecretName }}
+                  key: neo4j-password
+            - name: Messaging__RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecretName }}
+                  key: rabbitmq-password
+            - name: Auth__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecretName }}
+                  key: jwt-signing-key
           startupProbe:
             httpGet:
               path: {{ .Values.api.probes.startup.path }}
