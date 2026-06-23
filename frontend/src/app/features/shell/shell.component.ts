@@ -23,10 +23,17 @@ import { AuthService } from '../../core/services/auth.service';
               </li>
             }
           </ul>
+          @if (role()) {
+            <span
+              class="ml-auto rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
+            >
+              {{ role() }}
+            </span>
+          }
           <button
             type="button"
             (click)="logout()"
-            class="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
+            class="{{ role() ? 'ml-2' : 'ml-auto' }} rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
           >
             Sign out
           </button>
@@ -41,6 +48,8 @@ import { AuthService } from '../../core/services/auth.service';
 export class ShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  protected readonly role = this.auth.role;
 
   protected readonly links = [
     { path: 'dashboard', label: 'Dashboard' },
