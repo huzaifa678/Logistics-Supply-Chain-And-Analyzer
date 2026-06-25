@@ -3,8 +3,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json package-lock.json .npmrc ./
+# --legacy-peer-deps: NgRx 21 peers on Angular 21 while we run Angular 22 (no NgRx 22 yet).
+# The .npmrc copied above also sets this, but pass it explicitly so the build is self-evident.
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 RUN npm run build
