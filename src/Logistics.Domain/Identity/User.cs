@@ -35,4 +35,7 @@ public sealed class User : BaseEntity, IAggregateRoot
 
     public static User Rehydrate(string id, string email, string passwordHash, string displayName, Role role, DateTimeOffset createdAt)
         => new(email, passwordHash, displayName, role) { Id = id, CreatedAt = createdAt };
+
+    /// <summary>Reassigns this user's role (RBAC). Performed by an administrator.</summary>
+    public void ChangeRole(Role role) => Role = role;
 }
