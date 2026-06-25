@@ -1,4 +1,5 @@
 using Logistics.Api.Contracts;
+using Logistics.Api.Extensions;
 using Logistics.Application.Shipments.Commands.CreateShipment;
 using Logistics.Application.Shipments.Commands.UpdateShipmentStatus;
 using Logistics.Application.Shipments.Queries.AssessShipmentRisk;
@@ -17,6 +18,7 @@ namespace Logistics.Api.Controllers;
 public sealed class ShipmentsController(ISender sender) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Policy = Policies.RequireOperator)] // creating shipments is a write op
     public async Task<IActionResult> Create([FromBody] CreateShipmentRequest request, CancellationToken ct)
     {
         var result = await sender.Send(new CreateShipmentCommand(
@@ -53,7 +55,7 @@ public sealed class ShipmentsController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{id}/status")]
-    [Authorize(Roles = "Operator,Admin")] // status changes need elevated privileges
+    [Authorize(Policy = Policies.RequireOperator)] // status changes need elevated privileges
     public async Task<IActionResult> UpdateStatus(
         string id, [FromBody] UpdateShipmentStatusRequest request, CancellationToken ct)
     {
