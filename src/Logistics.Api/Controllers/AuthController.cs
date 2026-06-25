@@ -1,4 +1,5 @@
 using Logistics.Api.Contracts;
+using Logistics.Application.Identity.Commands.ClaimAdmin;
 using Logistics.Application.Identity.Commands.Login;
 using Logistics.Application.Identity.Commands.RefreshToken;
 using Logistics.Application.Identity.Commands.Register;
@@ -44,6 +45,17 @@ public sealed class AuthController(ISender sender) : ControllerBase
     public async Task<IActionResult> Revoke([FromBody] RevokeRequest request, CancellationToken ct)
     {
         var result = await sender.Send(new RevokeTokenCommand(request.RefreshToken), ct);
+        return result.Succeeded ? NoContent() : BadRequest(result.Error);
+    }
+
+    /// <summary>
+    /// One-time admin bootstrap, gated by the server-configured secret. Promotes the given account
+    /// to Admin only while no administrator exists. Re-login afterwards to get an Admin token.
+    /// </summary>
+    [HttpPost("claim-admin")]
+    public async Task<IActionResult> ClaimAdmin([FromBody] ClaimAdminRequest request, CancellationToken ct)
+    {
+        var result = await sender.Send(new ClaimAdminCommand(request.Email, request.Secret), ct);
         return result.Succeeded ? NoContent() : BadRequest(result.Error);
     }
 
