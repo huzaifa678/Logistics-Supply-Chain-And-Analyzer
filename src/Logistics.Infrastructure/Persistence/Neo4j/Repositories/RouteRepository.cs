@@ -38,4 +38,17 @@ public sealed class RouteRepository(Neo4jContext context) : IRouteRepository
             return records.Count == 0 ? null : RouteMapper.ToDomain(RouteDao.FromRecord(records[0]));
         });
     }
+
+    public async Task<IReadOnlyList<Route>> ListAsync(CancellationToken ct = default)
+    {
+        await using var session = context.Session(AccessMode.Read);
+        return await session.ExecuteReadAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(RouteCypher.List);
+            var records = await cursor.ToListAsync();
+            return (IReadOnlyList<Route>)records
+                .Select(r => RouteMapper.ToDomain(RouteDao.FromRecord(r)))
+                .ToList();
+        });
+    }
 }
