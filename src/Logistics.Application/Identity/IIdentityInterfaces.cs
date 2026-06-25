@@ -31,6 +31,12 @@ public interface IUserRepository
     Task<string> AddAsync(User user, CancellationToken ct = default);
     Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);
     Task<User?> GetByIdAsync(string id, CancellationToken ct = default);
+
+    /// <summary>All users, for the admin user-management view.</summary>
+    Task<IReadOnlyList<User>> ListAsync(CancellationToken ct = default);
+
+    /// <summary>Persists a role change for the given user (RBAC administration).</summary>
+    Task UpdateRoleAsync(string id, Role role, CancellationToken ct = default);
 }
 
 public interface IRefreshTokenRepository
