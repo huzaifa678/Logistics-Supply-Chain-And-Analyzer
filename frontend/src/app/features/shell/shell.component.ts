@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -19,6 +19,16 @@ import { AuthService } from '../../core/services/auth.service';
                   routerLinkActive="text-blue-600 font-medium"
                   class="text-gray-600 hover:text-gray-900"
                   >{{ link.label }}</a
+                >
+              </li>
+            }
+            @if (isAdmin()) {
+              <li>
+                <a
+                  routerLink="admin/users"
+                  routerLinkActive="text-blue-600 font-medium"
+                  class="text-gray-600 hover:text-gray-900"
+                  >Users</a
                 >
               </li>
             }
@@ -50,10 +60,12 @@ export class ShellComponent {
   private readonly router = inject(Router);
 
   protected readonly role = this.auth.role;
+  protected readonly isAdmin = computed(() => this.auth.hasRole('Admin'));
 
   protected readonly links = [
     { path: 'dashboard', label: 'Dashboard' },
     { path: 'shipments', label: 'Shipments' },
+    { path: 'warehouses', label: 'Warehouses' },
     { path: 'routes', label: 'Routes' },
   ];
 
