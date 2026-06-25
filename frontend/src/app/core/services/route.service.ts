@@ -5,10 +5,36 @@ import { environment } from '../../../environments/environment';
 import { RouteEstimate, ShortestPath } from '../models/route.model';
 import { TransportMode } from '../models/shipment.model';
 
+/** Mirrors the API's RouteSummaryDto (GET /api/routes). */
+export interface RouteSummary {
+  id: string;
+  originWarehouseId: string;
+  originName: string;
+  destinationWarehouseId: string;
+  destinationName: string;
+  distanceKm: number;
+  cost: number;
+  mode: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RouteService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/api/routes`;
+
+  list(): Observable<RouteSummary[]> {
+    return this.http.get<RouteSummary[]>(this.baseUrl);
+  }
+
+  create(request: {
+    originWarehouseId: string;
+    destinationWarehouseId: string;
+    distanceKm: number;
+    cost: number;
+    mode: TransportMode;
+  }): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(this.baseUrl, request);
+  }
 
   shortestPath(origin: string, destination: string): Observable<ShortestPath> {
     const params = new HttpParams().set('origin', origin).set('destination', destination);
