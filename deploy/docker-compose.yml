@@ -10,6 +10,8 @@ services:
       NEO4J_PLUGINS: '["graph-data-science"]'   # enables GDS for analytics
     volumes:
       - neo4j_data:/data
+    networks:
+      - logistics-net
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "please-change-me", "RETURN 1"]
       interval: 10s
@@ -24,6 +26,8 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    networks:
+      - logistics-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -31,6 +35,7 @@ services:
       retries: 10
 
   api:
+    image: huzaifagill234/logistics-api
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -38,9 +43,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Infra URLs come from appsettings.Docker.json (service names on this network).
-      # Override any single value here if needed — env vars still win over the JSON file.
       ASPNETCORE_ENVIRONMENT: Docker
+      Auth__BootstrapSecret: "dev-bootstrap-secret-change-me"
+    networks:
+      - logistics-net
     depends_on:
       neo4j:
         condition: service_healthy
@@ -48,6 +54,23 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
+  frontend:
+    image: huzaifagill234/frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: logistics-frontend
+    ports:
+      - "4000:4000"
+    environment:
+      # Angular v20+ SSR validates the Host header against allowedHosts (DNS-rebinding guard);
+      # the build bakes in an empty list, which rejects every host. Allow all behind the proxy.
+      NG_ALLOWED_HOSTS: "*"
+    networks:
+      - logistics-net
+    depends_on:
+      - api
 
   redpanda:
     image: redpandadata/redpanda:v24.2.7
@@ -61,7 +84,22 @@ services:
       - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
     ports:
       - "9092:9092"
-      - "8081:8081"   # built-in Schema Registry
+      - "8081:8081"   
+    networks:
+      - logistics-net
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: logistics-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - logistics-net
+    depends_on:
+      - api
+      - frontend
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -69,11 +107,17 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"   # management UI
+    networks:
+      - logistics-net
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+networks:
+  logistics-net:
+    driver: bridge
 
 volumes:
   neo4j_data:
