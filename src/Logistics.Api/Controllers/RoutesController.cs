@@ -1,10 +1,13 @@
 using Logistics.Api.Contracts;
+using Logistics.Api.Extensions;
 using Logistics.Application.Routes.Commands.CreateRoute;
 using Logistics.Application.Routes.Queries.EstimateRoute;
 using Logistics.Application.Routes.Queries.GetRouteById;
 using Logistics.Application.Routes.Queries.GetShortestPath;
+using Logistics.Application.Routes.Queries.ListRoutes;
 using Logistics.Domain.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Logistics.Api.Controllers;
@@ -13,8 +16,9 @@ namespace Logistics.Api.Controllers;
 [Route("api/[controller]")]
 public sealed class RoutesController(ISender sender) : ControllerBase
 {
-    /// <summary>Create a weighted route between two warehouses.</summary>
+    /// <summary>Create a weighted route between two warehouses. Operator/Admin only.</summary>
     [HttpPost]
+    [Authorize(Policy = Policies.RequireOperator)]
     public async Task<IActionResult> Create([FromBody] CreateRouteRequest request, CancellationToken ct)
     {
         var result = await sender.Send(
@@ -27,8 +31,17 @@ public sealed class RoutesController(ISender sender) : ControllerBase
             ct);
 
         return result.Succeeded
-            ? CreatedAtAction(nameof(Create), new { id = result.Value }, result.Value)
+            ? CreatedAtAction(nameof(Create), new { id = result.Value }, new { id = result.Value })
             : BadRequest(result.Error);
+    }
+
+    /// <summary>All routes (with warehouse names), for the dashboard network view.</summary>
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var result = await sender.Send(new ListRoutesQuery(), ct);
+        return result.Succeeded ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     /// <summary>Fetch a single route by id.</summary>
