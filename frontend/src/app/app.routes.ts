@@ -1,13 +1,17 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { guestGuard } from './core/guards/guest.guard';
+import { roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
+    canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'register',
+    canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/register.component').then((m) => m.RegisterComponent),
   },
   {
@@ -34,6 +38,19 @@ export const routes: Routes = [
           import('./features/routes/route-estimate.component').then(
             (m) => m.RouteEstimateComponent,
           ),
+      },
+      {
+        path: 'warehouses',
+        loadComponent: () =>
+          import('./features/warehouses/warehouse-overview.component').then(
+            (m) => m.WarehouseOverviewComponent,
+          ),
+      },
+      {
+        path: 'admin/users',
+        canActivate: [roleGuard('Admin')],
+        loadComponent: () =>
+          import('./features/admin/admin-users.component').then((m) => m.AdminUsersComponent),
       },
     ],
   },
