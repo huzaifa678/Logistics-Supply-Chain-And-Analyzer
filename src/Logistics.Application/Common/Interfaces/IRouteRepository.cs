@@ -10,5 +10,6 @@ public interface IRouteRepository
 {
     Task<string> AddAsync(Route route, CancellationToken ct = default);
     Task<Route?> GetByIdAsync(string id, CancellationToken ct = default);
+    Task<IReadOnlyList<Route>> ListAsync(CancellationToken ct = default);
     Task<bool> WarehouseExistsAsync(string warehouseId, CancellationToken ct = default);
 }
