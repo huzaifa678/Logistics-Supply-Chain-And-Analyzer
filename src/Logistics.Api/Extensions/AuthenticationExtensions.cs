@@ -30,7 +30,7 @@ public static class AuthenticationExtensions
                 };
             });
 
-        services.AddAuthorization();
+        // Authorization policies are registered separately — see AddAppAuthorization().
         return services;
     }
 }

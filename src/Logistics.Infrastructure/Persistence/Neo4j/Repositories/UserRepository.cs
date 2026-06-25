@@ -56,4 +56,26 @@ public sealed class UserRepository(Neo4jGraphClientProvider graph) : IUserReposi
 
         return nodes.SingleOrDefault()?.ToDomain();
     }
+
+    public async Task<IReadOnlyList<User>> ListAsync(CancellationToken ct = default)
+    {
+        var nodes = await Cypher.Cypher
+            .Match("(u:User)")
+            .Return(u => u.As<UserNode>())
+            .ResultsAsync;
+
+        return nodes.Select(n => n.ToDomain()).ToList();
+    }
+
+    public async Task UpdateRoleAsync(string id, Role role, CancellationToken ct = default)
+    {
+        // Raw SET string isn't translated by Neo4jClient, so it must match the stored
+        // (camelCase) property name — the node is serialized as { role, displayName, ... }.
+        await Cypher.Cypher
+            .Match("(u:User)")
+            .Where((UserNode u) => u.Id == id)
+            .Set("u.role = $role")
+            .WithParam("role", role.ToString())
+            .ExecuteWithoutResultsAsync();
+    }
 }

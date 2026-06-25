@@ -17,6 +17,13 @@ public sealed class AuthSettings
     public int AccessTokenMinutes { get; set; } = 15;
     public int RefreshTokenDays { get; set; } = 7;
 
+    /// <summary>
+    /// One-time admin-bootstrap secret. When non-empty, POST /api/auth/claim-admin accepts it to
+    /// promote a user to Admin — but only while NO administrator exists yet. Empty = disabled.
+    /// Set via env/secret (Auth__BootstrapSecret); never commit a real value.
+    /// </summary>
+    public string BootstrapSecret { get; set; } = string.Empty;
+
     public TimeSpan AccessTokenLifetime => TimeSpan.FromMinutes(AccessTokenMinutes);
     public TimeSpan RefreshTokenLifetime => TimeSpan.FromDays(RefreshTokenDays);
 }

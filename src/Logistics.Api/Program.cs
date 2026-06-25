@@ -19,8 +19,9 @@ builder.Services.AddHealthChecks()
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Authentication / authorization (JWT bearer).
+// Authentication (JWT bearer) + role-based authorization policies.
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddAppAuthorization();
 
 // CORS for the SPA (no-op when the frontend calls through a same-origin proxy/ingress).
 builder.Services.AddFrontendCors(builder.Configuration);

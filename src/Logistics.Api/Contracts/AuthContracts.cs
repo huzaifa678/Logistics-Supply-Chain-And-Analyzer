@@ -4,6 +4,7 @@ public sealed record RegisterRequest(string Email, string Password, string Displ
 public sealed record LoginRequest(string Email, string Password);
 public sealed record RefreshRequest(string RefreshToken);
 public sealed record RevokeRequest(string RefreshToken);
+public sealed record ClaimAdminRequest(string Email, string Secret);
 
 public sealed record AuthResponse(
     string AccessToken,
