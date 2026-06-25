@@ -28,6 +28,12 @@ internal static class RouteCypher
                r.distanceKm AS distanceKm, r.cost AS cost, r.mode AS mode
         """;
 
+    public const string List = """
+        MATCH (o:Warehouse)-[r:CONNECTS_TO]->(d:Warehouse)
+        RETURN r.id AS id, o.id AS originId, d.id AS destinationId,
+               r.distanceKm AS distanceKm, r.cost AS cost, r.mode AS mode
+        """;
+
     // Weighted shortest path. Swap for a GDS call (gds.shortestPath.dijkstra)
     // on large graphs; this variable-length form is fine for modest datasets.
     public const string ShortestPath = """
