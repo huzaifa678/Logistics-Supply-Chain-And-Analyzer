@@ -33,6 +33,7 @@ public static class DependencyInjection
 
         // Persistence
         services.AddScoped<IRouteRepository, RouteRepository>();
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IGraphAnalyticsRepository, GraphAnalyticsRepository>();
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
