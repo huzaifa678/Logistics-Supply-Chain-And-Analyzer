@@ -17,6 +17,10 @@ public class RefreshTokenRotationTests
         public Task<User?> GetByEmailAsync(string e, CancellationToken c = default) => Task.FromResult<User?>(_user);
         public Task<User?> GetByIdAsync(string id, CancellationToken c = default)
             => Task.FromResult<User?>(_user.Id == id ? _user : null);
+        public Task<IReadOnlyList<User>> ListAsync(CancellationToken c = default)
+            => Task.FromResult<IReadOnlyList<User>>([_user]);
+        public Task UpdateRoleAsync(string id, Role role, CancellationToken c = default)
+            => Task.CompletedTask;
     }
 
     private sealed class FakeRefreshTokens : IRefreshTokenRepository
