@@ -11,4 +11,9 @@ public sealed class RabbitMqSettings
     public string Username { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string Queue { get; set; } = "notifications";
+
+    // DLQ exchange settings config
+    public string DeadLetterExchange { get; set; } = "notifications.dlx";
+    public string DeadLetterQueue { get; set; } = "notifications.dlq";
+    public int DeliveryLimit { get; set; } = 5;
 }
