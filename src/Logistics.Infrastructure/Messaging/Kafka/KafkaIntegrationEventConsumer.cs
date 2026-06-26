@@ -1,3 +1,4 @@
+using System.Text;
 using Avro.Generic;
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
@@ -41,6 +42,11 @@ public sealed class KafkaIntegrationEventConsumer(
         using var consumer = new ConsumerBuilder<string, GenericRecord>(config)
             .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
             .Build();
+        // Raw producer for the dead-letter topic: forwards poison/failed messages as bytes.
+        using var deadLetter = new ProducerBuilder<byte[], byte[]>(
+            new ProducerConfig { BootstrapServers = _settings.BootstrapServers }).Build();
+        var dltTopic = _settings.ResolvedDeadLetterTopic;
+
         consumer.Subscribe(_settings.Topic);
         logger.LogInformation("Kafka (Avro) consumer subscribed to {Topic}.", _settings.Topic);
 
@@ -55,11 +61,38 @@ public sealed class KafkaIntegrationEventConsumer(
                 }
                 catch (ConsumeException ex)
                 {
-                    logger.LogError(ex, "Kafka consume error");
+                    // Undeserializable (poison) message → dead-letter the raw bytes and skip past it
+                    // so the partition isn't blocked forever.
+                    var cr = ex.ConsumerRecord;
+                    logger.LogError(ex, "Kafka deserialization failed at {Offset}; dead-lettering",
+                        cr?.TopicPartitionOffset);
+                    if (cr is not null)
+                    {
+                        await DeadLetterAsync(deadLetter, dltTopic, cr.Message?.Key, cr.Message?.Value,
+                            ex.Error.Reason, cr.TopicPartitionOffset, stoppingToken);
+                        consumer.Commit(new[]
+                        {
+                            new TopicPartitionOffset(cr.TopicPartition, new Offset(cr.Offset.Value + 1)),
+                        });
+                    }
                     continue;
                 }
 
-                await HandleAsync(result.Message.Value, stoppingToken);
+                try
+                {
+                    await HandleAsync(result.Message.Value, stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Processing failed → dead-letter a best-effort copy, then commit so we move on.
+                    logger.LogError(ex, "Processing failed at {Offset}; dead-lettering",
+                        result.TopicPartitionOffset);
+                    var value = Encoding.UTF8.GetBytes(result.Message.Value?.ToString() ?? string.Empty);
+                    var key = result.Message.Key is null ? null : Encoding.UTF8.GetBytes(result.Message.Key);
+                    await DeadLetterAsync(deadLetter, dltTopic, key, value, ex.Message,
+                        result.TopicPartitionOffset, stoppingToken);
+                }
+
                 consumer.Commit(result);
             }
         }
@@ -71,6 +104,20 @@ public sealed class KafkaIntegrationEventConsumer(
         {
             consumer.Close();
         }
+    }
+
+    /// <summary>Produce a message to the dead-letter topic, tagging it with the failure reason/origin.</summary>
+    private static async Task DeadLetterAsync(
+        IProducer<byte[], byte[]> producer, string topic, byte[]? key, byte[]? value,
+        string reason, TopicPartitionOffset origin, CancellationToken ct)
+    {
+        var headers = new Headers
+        {
+            { "x-dlt-reason", Encoding.UTF8.GetBytes(reason) },
+            { "x-dlt-origin", Encoding.UTF8.GetBytes(origin.ToString()) },
+        };
+        await producer.ProduceAsync(
+            topic, new Message<byte[], byte[]> { Key = key ?? [], Value = value ?? [], Headers = headers }, ct);
     }
 
     private async Task HandleAsync(GenericRecord record, CancellationToken ct)
