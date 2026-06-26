@@ -10,8 +10,11 @@ using Logistics.Infrastructure.Persistence.Neo4j;
 using Logistics.Infrastructure.Persistence.Neo4j.Migrations;
 using Logistics.Infrastructure.Persistence.Neo4j.Repositories;
 using Logistics.Infrastructure.RateLimiting;
+using Logistics.Infrastructure.Webhooks;
+using Logistics.Application.Common.Webhooks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using StackExchange.Redis;
 
 namespace Logistics.Infrastructure;
@@ -50,6 +53,7 @@ public static class DependencyInjection
 
         AddRateLimiting(services, configuration);
         AddMessaging(services, configuration);
+        AddWebhooks(services, configuration);
 
         // Versioned graph migrations (schema + data), applied in order on startup.
         services.AddSingleton<IGraphMigration, M0001_InitialSchema>();
@@ -113,5 +117,26 @@ public static class DependencyInjection
         {
             services.AddSingleton<IRateLimiter, NoOpRateLimiter>();
         }
+    }
+
+    private static void AddWebhooks(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(WebhookSettings.SectionName);
+        services.Configure<WebhookSettings>(section);
+        var settings = section.Get<WebhookSettings>() ?? new WebhookSettings();
+        var attempt = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 1));
+
+        // Typed client for outbound webhooks. The standard resilience handler adds retry with
+        // backoff + jitter, a circuit breaker and timeouts — the right place for it, since this is
+        // the only call to an external, uncontrolled endpoint. HttpClient.Timeout is left infinite
+        // so the resilience pipeline governs all timing.
+        services.AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
+                client.Timeout = Timeout.InfiniteTimeSpan)
+            .AddStandardResilienceHandler(options =>
+            {
+                options.AttemptTimeout.Timeout = attempt;
+                options.TotalRequestTimeout.Timeout = attempt * 4;
+                options.CircuitBreaker.SamplingDuration = attempt * 4; // must be >= 2 * AttemptTimeout
+            });
     }
 }
