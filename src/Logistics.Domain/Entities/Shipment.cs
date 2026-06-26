@@ -45,7 +45,9 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
         if (originWarehouseId == destinationWarehouseId) throw new ArgumentException("Origin and destination must differ.");
         if (weightKg <= 0) throw new ArgumentOutOfRangeException(nameof(weightKg));
 
-        return new Shipment(trackingNumber, originWarehouseId, destinationWarehouseId, weightKg, mode);
+        var shipment = new Shipment(trackingNumber, originWarehouseId, destinationWarehouseId, weightKg, mode);
+        shipment.RaiseEvent(new ShipmentCreatedEvent(shipment.Id, shipment.TrackingNumber));
+        return shipment;
     }
 
     public void Dispatch(DateTimeOffset estimatedArrival)

@@ -1,4 +1,5 @@
 using Logistics.Domain.Common;
+using Logistics.Domain.Events;
 using Logistics.Domain.ValueObjects;
 
 namespace Logistics.Domain.Entities;
@@ -27,7 +28,9 @@ public sealed class Warehouse : BaseEntity, IAggregateRoot
         if (capacityUnits < 0)
             throw new ArgumentOutOfRangeException(nameof(capacityUnits));
 
-        return new Warehouse(name, location, capacityUnits);
+        var warehouse = new Warehouse(name, location, capacityUnits);
+        warehouse.RaiseEvent(new WarehouseCreatedEvent(warehouse.Id, warehouse.Name));
+        return warehouse;
     }
 
     /// <summary>Rehydrate from persistence without re-running creation invariants.</summary>

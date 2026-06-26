@@ -48,7 +48,8 @@ public sealed class RabbitMqNotificationConsumer(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Notification delivery failed; requeuing");
+            // Try to requeue failed deliveries bounded by the delivery limit which DLQ will catch.
+            logger.LogError(ex, "Notification delivery failed; requeuing (bounded by delivery limit)");
             await _channel!.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);
         }
     }

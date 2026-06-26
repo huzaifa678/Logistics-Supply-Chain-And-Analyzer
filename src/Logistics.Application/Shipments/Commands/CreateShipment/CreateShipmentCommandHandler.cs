@@ -5,8 +5,9 @@ using MediatR;
 
 namespace Logistics.Application.Shipments.Commands.CreateShipment;
 
-public sealed class CreateShipmentCommandHandler(IShipmentRepository shipments)
-    : IRequestHandler<CreateShipmentCommand, Result<string>>
+public sealed class CreateShipmentCommandHandler(
+    IShipmentRepository shipments,
+    IDomainEventQueue eventQueue) : IRequestHandler<CreateShipmentCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(CreateShipmentCommand request, CancellationToken ct)
     {
@@ -23,6 +24,12 @@ public sealed class CreateShipmentCommandHandler(IShipmentRepository shipments)
             request.Mode);
 
         var id = await shipments.AddAsync(shipment, ct);
+
+        // Hand domain events off to the background worker, then clear them from the aggregate.
+        foreach (var domainEvent in shipment.DomainEvents)
+            await eventQueue.EnqueueAsync(domainEvent, ct);
+        shipment.ClearEvents();
+
         return Result<string>.Success(id);
     }
 }

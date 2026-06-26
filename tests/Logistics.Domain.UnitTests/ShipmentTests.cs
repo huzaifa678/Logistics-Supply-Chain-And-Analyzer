@@ -17,6 +17,15 @@ public class ShipmentTests
     }
 
     [Fact]
+    public void Create_RaisesShipmentCreatedEvent()
+    {
+        var shipment = NewShipment();
+        var created = Assert.IsType<ShipmentCreatedEvent>(Assert.Single(shipment.DomainEvents));
+        Assert.Equal(shipment.Id, created.ShipmentId);
+        Assert.Equal("TRK-1", created.TrackingNumber);
+    }
+
+    [Fact]
     public void Dispatch_FromCreated_MovesToInTransit()
     {
         var s = NewShipment();
@@ -33,8 +42,8 @@ public class ShipmentTests
         s.MarkDelayed("Port congestion");
 
         Assert.Equal(ShipmentStatus.Delayed, s.Status);
-        Assert.Single(s.DomainEvents);
-        Assert.IsType<ShipmentDelayedEvent>(s.DomainEvents.First());
+        // DomainEvents also carries the ShipmentCreatedEvent from Create(); assert the delay is raised.
+        Assert.Contains(s.DomainEvents, e => e is ShipmentDelayedEvent);
     }
 
     [Fact]

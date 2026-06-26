@@ -36,9 +36,30 @@ public sealed class RabbitMqConnection(IOptions<RabbitMqSettings> options) : IAs
     {
         var connection = await GetConnectionAsync(ct);
         var channel = await connection.CreateChannelAsync(cancellationToken: ct);
+
+        // Dead-letter exchange + queue (where exhausted messages land).
+        await channel.ExchangeDeclareAsync(
+            exchange: _settings.DeadLetterExchange, type: ExchangeType.Fanout,
+            durable: true, autoDelete: false, arguments: null, cancellationToken: ct);
+        await channel.QueueDeclareAsync(
+            queue: _settings.DeadLetterQueue, durable: true, exclusive: false, autoDelete: false,
+            arguments: null, cancellationToken: ct);
+        await channel.QueueBindAsync(
+            queue: _settings.DeadLetterQueue, exchange: _settings.DeadLetterExchange,
+            routingKey: string.Empty, arguments: null, cancellationToken: ct);
+
+        // Main queue: quorum + delivery limit + dead-letter routing. After x-delivery-limit failed
+        // redeliveries RabbitMQ dead-letters the message instead of requeuing it forever.
+        var args = new Dictionary<string, object?>
+        {
+            ["x-queue-type"] = "quorum",
+            ["x-dead-letter-exchange"] = _settings.DeadLetterExchange,
+            ["x-delivery-limit"] = _settings.DeliveryLimit,
+        };
         await channel.QueueDeclareAsync(
             queue: _settings.Queue, durable: true, exclusive: false, autoDelete: false,
-            arguments: null, cancellationToken: ct);
+            arguments: args, cancellationToken: ct);
+
         return channel;
     }
 

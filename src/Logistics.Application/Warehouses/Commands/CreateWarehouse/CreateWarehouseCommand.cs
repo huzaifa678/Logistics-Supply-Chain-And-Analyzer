@@ -25,8 +25,9 @@ public sealed class CreateWarehouseCommandValidator : AbstractValidator<CreateWa
     }
 }
 
-public sealed class CreateWarehouseCommandHandler(IWarehouseRepository warehouses)
-    : IRequestHandler<CreateWarehouseCommand, Result<string>>
+public sealed class CreateWarehouseCommandHandler(
+    IWarehouseRepository warehouses,
+    IDomainEventQueue eventQueue) : IRequestHandler<CreateWarehouseCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(CreateWarehouseCommand request, CancellationToken ct)
     {
@@ -36,6 +37,12 @@ public sealed class CreateWarehouseCommandHandler(IWarehouseRepository warehouse
             request.CapacityUnits);
 
         var id = await warehouses.AddAsync(warehouse, ct);
+
+        // Hand domain events off to the background worker, then clear them from the aggregate.
+        foreach (var domainEvent in warehouse.DomainEvents)
+            await eventQueue.EnqueueAsync(domainEvent, ct);
+        warehouse.ClearEvents();
+
         return Result<string>.Success(id);
     }
 }
