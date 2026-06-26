@@ -12,4 +12,13 @@ public sealed class KafkaSettings
 
     /// <summary>Confluent-compatible Schema Registry endpoint (Redpanda serves one on :8081).</summary>
     public string SchemaRegistryUrl { get; set; } = "http://localhost:8081";
+
+    /// <summary>
+    /// Dead-letter topic for messages that can't be deserialized or processed. Empty → "&lt;Topic&gt;.DLT".
+    /// </summary>
+    public string DeadLetterTopic { get; set; } = string.Empty;
+
+    /// <summary>Resolved dead-letter topic name.</summary>
+    public string ResolvedDeadLetterTopic =>
+        string.IsNullOrWhiteSpace(DeadLetterTopic) ? $"{Topic}.DLT" : DeadLetterTopic;
 }
