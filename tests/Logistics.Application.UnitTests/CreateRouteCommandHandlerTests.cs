@@ -25,6 +25,9 @@ public class CreateRouteCommandHandlerTests
 
         public Task<Route?> GetByIdAsync(string id, CancellationToken ct = default)
             => Task.FromResult<Route?>(Added);
+
+        public Task<IReadOnlyList<Route>> ListAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Route>>(Added is null ? [] : [Added]);
     }
 
     [Fact]
