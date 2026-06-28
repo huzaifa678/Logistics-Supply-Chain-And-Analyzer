@@ -45,6 +45,17 @@ import { AuthService } from "../../core/services/auth.service";
           />
         </label>
 
+        <label class="block text-sm">
+          <span class="text-gray-600">Phone (for login codes)</span>
+          <input
+            type="tel"
+            formControlName="phone"
+            autocomplete="tel"
+            placeholder="+15551234567"
+            class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+          />
+        </label>
+
         @if (error()) {
           <p class="text-sm text-red-600">{{ error() }}</p>
         }
@@ -81,6 +92,8 @@ export class RegisterComponent {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
     displayName: ['', [Validators.required]],
+    // E.164 — matches the API's RegisterCommand phone rule.
+    phone: ['', [Validators.required, Validators.pattern(/^\+[1-9]\d{1,14}$/)]],
   });
 
   protected submit(): void {

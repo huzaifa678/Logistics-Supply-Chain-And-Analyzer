@@ -2,7 +2,14 @@ import { Injectable, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, LoginRequest, RegisterRequest, Role } from '../models/auth.model';
+import {
+  AuthResponse,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  Role,
+  VerifyOtpRequest,
+} from '../models/auth.model';
 import { TokenStorageService } from './token-storage.service';
 
 /**
@@ -46,9 +53,22 @@ export class AuthService {
     return current !== null && roles.includes(current);
   }
 
-  login(request: LoginRequest): Observable<AuthResponse> {
+  /**
+   * Step 1 of login. Returns `otpRequired: true` when the server has sent a one-time code and is
+   * waiting for {@link verifyOtp}. Only stores tokens here if OTP is disabled (tokens present).
+   */
+  login(request: LoginRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, request).pipe(
+      tap((res) => {
+        if (res.tokens) this.storage.setTokens(res.tokens.accessToken, res.tokens.refreshToken);
+      }),
+    );
+  }
+
+  /** Step 2 of login: exchange the emailed/texted code for tokens. */
+  verifyOtp(request: VerifyOtpRequest): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.baseUrl}/login`, request)
+      .post<AuthResponse>(`${this.baseUrl}/verify-otp`, request)
       .pipe(tap((res) => this.storage.setTokens(res.accessToken, res.refreshToken)));
   }
 
