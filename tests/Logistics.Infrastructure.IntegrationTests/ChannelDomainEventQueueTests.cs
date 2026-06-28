@@ -12,8 +12,8 @@ public class ChannelDomainEventQueueTests
     {
         var queue = new ChannelDomainEventQueue();
 
-        await queue.EnqueueAsync(new ShipmentDelayedEvent("s1", "TRK-1", "a"));
-        await queue.EnqueueAsync(new ShipmentDelayedEvent("s2", "TRK-2", "b"));
+        await queue.EnqueueAsync(new ShipmentDelayedEvent("s1", "TRK-1", "a", "+15551230005"));
+        await queue.EnqueueAsync(new ShipmentDelayedEvent("s2", "TRK-2", "b", "+15551230006"));
 
         var received = new List<string>();
 
