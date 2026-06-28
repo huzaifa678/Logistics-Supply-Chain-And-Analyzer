@@ -8,7 +8,7 @@ namespace Logistics.Domain.UnitTests;
 public class ShipmentTests
 {
     private static Shipment NewShipment() =>
-        Shipment.Create("TRK-1", "w1", "w2", 250, TransportMode.Sea);
+        Shipment.Create("TRK-1", "w1", "w2", "+15551230001", 250, TransportMode.Sea);
 
     [Fact]
     public void Create_StartsInCreatedStatus()
@@ -44,6 +44,25 @@ public class ShipmentTests
         Assert.Equal(ShipmentStatus.Delayed, s.Status);
         // DomainEvents also carries the ShipmentCreatedEvent from Create(); assert the delay is raised.
         Assert.Contains(s.DomainEvents, e => e is ShipmentDelayedEvent);
+    }
+
+    [Fact]
+    public void MarkDelayed_CarriesCustomerPhone()
+    {
+        var s = NewShipment();
+        s.Dispatch(DateTimeOffset.UtcNow.AddDays(3));
+        s.MarkDelayed("Port congestion");
+
+        var delayed = Assert.IsType<ShipmentDelayedEvent>(
+            Assert.Single(s.DomainEvents, e => e is ShipmentDelayedEvent));
+        Assert.Equal("+15551230001", delayed.CustomerPhone);
+    }
+
+    [Fact]
+    public void Create_WithoutCustomerPhone_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Shipment.Create("TRK-1", "w1", "w2", "", 250, TransportMode.Sea));
     }
 
     [Fact]
