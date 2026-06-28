@@ -20,3 +20,6 @@ coverage*.json
 
 ## Helm: vendored dependency archives (reproducible from Chart.lock via `helm dependency build`)
 deploy/logistics-chart/charts/*.tgz
+
+# Local secrets for docker-compose
+deploy/.env
