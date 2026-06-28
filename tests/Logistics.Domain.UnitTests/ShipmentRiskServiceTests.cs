@@ -26,7 +26,7 @@ public class ShipmentRiskServiceTests
     ];
 
     private static Shipment NewShipment(TransportMode mode = TransportMode.Road) =>
-        Shipment.Create("TRK-1", "w1", "w2", 100, mode);
+        Shipment.Create("TRK-1", "w1", "w2", "+15551230002", 100, mode);
 
     [Fact]
     public async Task AssessAsync_LowRisk_ShortRoadHop_NoCongestion()
