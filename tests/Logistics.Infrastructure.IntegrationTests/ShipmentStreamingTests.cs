@@ -31,7 +31,7 @@ public class ShipmentStreamingTests : IAsyncLifetime
         var repo = new ShipmentRepository(_context);
         for (var i = 0; i < 5; i++)
         {
-            var s = Shipment.Create($"TRK-{i}", "w1", "w2", 10 + i, TransportMode.Road);
+            var s = Shipment.Create($"TRK-{i}", "w1", "w2", "+15551230003", 10 + i, TransportMode.Road);
             await repo.AddAsync(s);
         }
     }
