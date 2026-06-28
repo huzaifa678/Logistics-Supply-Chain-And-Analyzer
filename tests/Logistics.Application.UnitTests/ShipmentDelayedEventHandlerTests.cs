@@ -13,7 +13,7 @@ public class ShipmentDelayedEventHandlerTests
     [Fact]
     public void CanHandle_OnlyShipmentDelayedEvent()
     {
-        Assert.True(_handler.CanHandle(new ShipmentDelayedEvent("s1", "TRK", "late")));
+        Assert.True(_handler.CanHandle(new ShipmentDelayedEvent("s1", "TRK", "late", "+15551230004")));
     }
 
     private sealed record OtherEvent : Logistics.Domain.Common.DomainEvent;
@@ -27,6 +27,6 @@ public class ShipmentDelayedEventHandlerTests
     [Fact]
     public async Task HandleAsync_Completes()
     {
-        await _handler.HandleAsync(new ShipmentDelayedEvent("s1", "TRK", "late"), default);
+        await _handler.HandleAsync(new ShipmentDelayedEvent("s1", "TRK", "late", "+15551230004"), default);
     }
 }
