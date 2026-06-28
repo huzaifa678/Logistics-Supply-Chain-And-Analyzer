@@ -15,8 +15,8 @@ internal static class ShipmentCypher
     public const string Create = """
         MATCH (o:Warehouse {id: $originId}), (d:Warehouse {id: $destinationId})
         CREATE (s:Shipment {
-            id: $id, trackingNumber: $trackingNumber, weightKg: $weightKg,
-            mode: $mode, status: $status, createdAt: $createdAt,
+            id: $id, trackingNumber: $trackingNumber, customerPhone: $customerPhone,
+            weightKg: $weightKg, mode: $mode, status: $status, createdAt: $createdAt,
             estimatedArrival: $estimatedArrival, deliveredAt: $deliveredAt
         })
         CREATE (s)-[:ORIGINATES_AT]->(o)
@@ -33,7 +33,7 @@ internal static class ShipmentCypher
 
     private const string Projection = """
         RETURN s.id AS id, s.trackingNumber AS trackingNumber,
-               o.id AS originId, d.id AS destinationId,
+               o.id AS originId, d.id AS destinationId, s.customerPhone AS customerPhone,
                s.weightKg AS weightKg, s.mode AS mode, s.status AS status,
                s.createdAt AS createdAt, s.estimatedArrival AS estimatedArrival,
                s.deliveredAt AS deliveredAt
