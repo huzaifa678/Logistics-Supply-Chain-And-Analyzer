@@ -77,6 +77,14 @@ const STATUS_COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#22c55e', '#6b7280'];
               </select>
             </label>
             <label class="block text-sm">
+              <span class="text-gray-600">Customer phone</span>
+              <input
+                formControlName="customerPhone"
+                placeholder="+15551234567"
+                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              />
+            </label>
+            <label class="block text-sm">
               <span class="text-gray-600">Weight (kg)</span>
               <input
                 type="number"
@@ -203,6 +211,8 @@ export class ShipmentListComponent {
     trackingNumber: ['', [Validators.required, Validators.maxLength(64)]],
     originWarehouseId: ['', [Validators.required]],
     destinationWarehouseId: ['', [Validators.required]],
+    // E.164: leading '+' then up to 15 digits — matches the API's CustomerPhone rule.
+    customerPhone: ['', [Validators.required, Validators.pattern(/^\+[1-9]\d{1,14}$/)]],
     weightKg: [1, [Validators.required, Validators.min(0.1)]],
     mode: [TransportMode.Road, [Validators.required]],
   });
