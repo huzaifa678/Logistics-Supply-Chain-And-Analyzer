@@ -47,7 +47,7 @@ public class RefreshTokenRotationTests
     [Fact]
     public async Task Refresh_RotatesToken_AndRevokesOld()
     {
-        var user = User.Create("a@b.com", "hash", "Alice", Role.Operator);
+        var user = User.Create("a@b.com", "hash", "Alice", "+15551230010", Role.Operator);
         var refreshRepo = new FakeRefreshTokens();
         var gen = new FakeTokenGen();
 
