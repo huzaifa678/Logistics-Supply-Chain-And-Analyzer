@@ -26,7 +26,7 @@ public class WebhookDispatchHandlerTests
         var handler = new WebhookDispatchHandler(new CapturingSender());
 
         Assert.True(handler.CanHandle(new ShipmentCreatedEvent("s1", "TRK")));
-        Assert.True(handler.CanHandle(new ShipmentDelayedEvent("s1", "TRK", "late")));
+        Assert.True(handler.CanHandle(new ShipmentDelayedEvent("s1", "TRK", "late", "+15551230004")));
         Assert.True(handler.CanHandle(new WarehouseCreatedEvent("w1", "Hub")));
         Assert.False(handler.CanHandle(new UnrelatedEvent()));
     }
@@ -38,7 +38,7 @@ public class WebhookDispatchHandlerTests
         var handler = new WebhookDispatchHandler(sender);
 
         await handler.HandleAsync(new ShipmentCreatedEvent("s1", "TRK"), default);
-        await handler.HandleAsync(new ShipmentDelayedEvent("s1", "TRK", "late"), default);
+        await handler.HandleAsync(new ShipmentDelayedEvent("s1", "TRK", "late", "+15551230004"), default);
         await handler.HandleAsync(new WarehouseCreatedEvent("w1", "Hub"), default);
 
         Assert.Equal(
