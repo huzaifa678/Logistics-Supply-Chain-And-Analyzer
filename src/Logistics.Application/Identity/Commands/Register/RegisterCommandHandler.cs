@@ -18,6 +18,7 @@ public sealed class RegisterCommandHandler(
             email,
             passwordHasher.Hash(request.Password),
             request.DisplayName,
+            request.Phone.Trim(),
             Role.Viewer);
 
         var id = await users.AddAsync(user, ct);
