@@ -20,6 +20,7 @@ public sealed class CreateShipmentCommandHandler(
             request.TrackingNumber,
             request.OriginWarehouseId,
             request.DestinationWarehouseId,
+            request.CustomerPhone,
             request.WeightKg,
             request.Mode);
 
