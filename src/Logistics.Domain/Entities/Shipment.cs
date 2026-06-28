@@ -15,6 +15,7 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
     public string TrackingNumber { get; private set; }
     public string OriginWarehouseId { get; private set; }
     public string DestinationWarehouseId { get; private set; }
+    public string CustomerPhone { get; private set; }
     public double WeightKg { get; private set; }
     public TransportMode Mode { get; private set; }
     public ShipmentStatus Status { get; private set; }
@@ -24,11 +25,12 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
 
     private Shipment(
         string trackingNumber, string originWarehouseId, string destinationWarehouseId,
-        double weightKg, TransportMode mode)
+        string customerPhone, double weightKg, TransportMode mode)
     {
         TrackingNumber = trackingNumber;
         OriginWarehouseId = originWarehouseId;
         DestinationWarehouseId = destinationWarehouseId;
+        CustomerPhone = customerPhone;
         WeightKg = weightKg;
         Mode = mode;
         Status = ShipmentStatus.Created;
@@ -37,15 +39,16 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
 
     public static Shipment Create(
         string trackingNumber, string originWarehouseId, string destinationWarehouseId,
-        double weightKg, TransportMode mode)
+        string customerPhone, double weightKg, TransportMode mode)
     {
         if (string.IsNullOrWhiteSpace(trackingNumber)) throw new ArgumentException("Tracking number required.", nameof(trackingNumber));
         if (string.IsNullOrWhiteSpace(originWarehouseId)) throw new ArgumentException("Origin required.", nameof(originWarehouseId));
         if (string.IsNullOrWhiteSpace(destinationWarehouseId)) throw new ArgumentException("Destination required.", nameof(destinationWarehouseId));
         if (originWarehouseId == destinationWarehouseId) throw new ArgumentException("Origin and destination must differ.");
+        if (string.IsNullOrWhiteSpace(customerPhone)) throw new ArgumentException("Customer phone required.", nameof(customerPhone));
         if (weightKg <= 0) throw new ArgumentOutOfRangeException(nameof(weightKg));
 
-        var shipment = new Shipment(trackingNumber, originWarehouseId, destinationWarehouseId, weightKg, mode);
+        var shipment = new Shipment(trackingNumber, originWarehouseId, destinationWarehouseId, customerPhone, weightKg, mode);
         shipment.RaiseEvent(new ShipmentCreatedEvent(shipment.Id, shipment.TrackingNumber));
         return shipment;
     }
@@ -61,7 +64,7 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
     {
         EnsureStatus(ShipmentStatus.InTransit);
         Status = ShipmentStatus.Delayed;
-        RaiseEvent(new ShipmentDelayedEvent(Id, TrackingNumber, reason));
+        RaiseEvent(new ShipmentDelayedEvent(Id, TrackingNumber, reason, CustomerPhone));
     }
 
     public void Deliver()
@@ -87,9 +90,9 @@ public sealed class Shipment : BaseEntity, IAggregateRoot
 
     public static Shipment Rehydrate(
         string id, string trackingNumber, string originWarehouseId, string destinationWarehouseId,
-        double weightKg, TransportMode mode, ShipmentStatus status,
+        string customerPhone, double weightKg, TransportMode mode, ShipmentStatus status,
         DateTimeOffset createdAt, DateTimeOffset? estimatedArrival, DateTimeOffset? deliveredAt)
-        => new(trackingNumber, originWarehouseId, destinationWarehouseId, weightKg, mode)
+        => new(trackingNumber, originWarehouseId, destinationWarehouseId, customerPhone, weightKg, mode)
         {
             Id = id,
             Status = status,
