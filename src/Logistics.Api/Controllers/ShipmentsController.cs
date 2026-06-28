@@ -23,7 +23,7 @@ public sealed class ShipmentsController(ISender sender) : ControllerBase
     {
         var result = await sender.Send(new CreateShipmentCommand(
             request.TrackingNumber, request.OriginWarehouseId, request.DestinationWarehouseId,
-            request.WeightKg, request.Mode), ct);
+            request.CustomerPhone, request.WeightKg, request.Mode), ct);
 
         return result.Succeeded
             ? CreatedAtAction(nameof(GetByTracking), new { trackingNumber = request.TrackingNumber }, new { id = result.Value })
