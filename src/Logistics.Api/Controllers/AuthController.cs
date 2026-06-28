@@ -4,6 +4,7 @@ using Logistics.Application.Identity.Commands.Login;
 using Logistics.Application.Identity.Commands.RefreshToken;
 using Logistics.Application.Identity.Commands.Register;
 using Logistics.Application.Identity.Commands.RevokeToken;
+using Logistics.Application.Identity.Commands.VerifyOtp;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     {
         // Sends the Register command via MediatR to the Application layer, the dispatcher finds the assigned handler and executes the logic.
         var result = await sender.Send(
-            new RegisterCommand(request.Email, request.Password, request.DisplayName), ct);
+            new RegisterCommand(request.Email, request.Password, request.DisplayName, request.Phone), ct);
 
         return result.Succeeded
             ? CreatedAtAction(nameof(Register), new { id = result.Value }, new { id = result.Value })
@@ -31,6 +32,21 @@ public sealed class AuthController(ISender sender) : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         var result = await sender.Send(new LoginCommand(request.Email, request.Password), ct);
+        if (!result.Succeeded)
+            return Unauthorized(result.Error);
+
+        var login = result.Value!;
+        // OTP enforced: no tokens yet — the client must verify the emailed/texted code.
+        return Ok(new LoginResponse(
+            login.OtpRequired,
+            login.Tokens is null ? null : ToResponse(login.Tokens)));
+    }
+
+    /// <summary>Second login step: exchange the one-time code for access + refresh tokens.</summary>
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request, CancellationToken ct)
+    {
+        var result = await sender.Send(new VerifyOtpCommand(request.Email, request.Code), ct);
         return result.Succeeded ? Ok(ToResponse(result.Value!)) : Unauthorized(result.Error);
     }
 

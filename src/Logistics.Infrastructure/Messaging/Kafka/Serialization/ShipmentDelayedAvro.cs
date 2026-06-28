@@ -21,7 +21,8 @@ public static class ShipmentDelayedAvro
         { "name": "occurredOn",     "type": "string" },
         { "name": "shipmentId",     "type": "string" },
         { "name": "trackingNumber", "type": "string" },
-        { "name": "reason",         "type": "string" }
+        { "name": "reason",         "type": "string" },
+        { "name": "customerPhone",  "type": ["null", "string"], "default": null }
       ]
     }
     """;
@@ -39,6 +40,7 @@ public static class ShipmentDelayedAvro
         record.Add("shipmentId", e.ShipmentId);
         record.Add("trackingNumber", e.TrackingNumber);
         record.Add("reason", e.Reason);
+        record.Add("customerPhone", string.IsNullOrWhiteSpace(e.CustomerPhone) ? null : e.CustomerPhone);
         return record;
     }
 
@@ -46,7 +48,8 @@ public static class ShipmentDelayedAvro
         new(
             ShipmentId: Get(record, "shipmentId"),
             TrackingNumber: Get(record, "trackingNumber"),
-            Reason: Get(record, "reason"))
+            Reason: Get(record, "reason"),
+            CustomerPhone: Get(record, "customerPhone"))
         {
             EventId = Get(record, "eventId"),
             OccurredOn = DateTimeOffset.Parse(Get(record, "occurredOn"))

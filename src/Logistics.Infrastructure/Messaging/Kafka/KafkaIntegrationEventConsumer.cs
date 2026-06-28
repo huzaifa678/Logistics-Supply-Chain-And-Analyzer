@@ -6,6 +6,7 @@ using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using Logistics.Application.Common.Messaging;
 using Logistics.Infrastructure.Messaging.Kafka.Serialization;
+using Logistics.Infrastructure.Messaging.Notifications;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,9 +23,11 @@ public sealed class KafkaIntegrationEventConsumer(
     INotificationPublisher notifications,
     ISchemaRegistryClient schemaRegistry,
     IOptions<KafkaSettings> options,
+    IOptions<NotificationSettings> notificationOptions,
     ILogger<KafkaIntegrationEventConsumer> logger) : BackgroundService
 {
     private readonly KafkaSettings _settings = options.Value;
+    private readonly NotificationSettings _recipients = notificationOptions.Value;
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
         => Task.Run(() => ConsumeLoop(stoppingToken), stoppingToken);
@@ -127,12 +130,21 @@ public sealed class KafkaIntegrationEventConsumer(
 
         var e = ShipmentDelayedAvro.FromRecord(record);
 
-        await notifications.PublishAsync(new NotificationMessage(
-            Channel: "email",
-            Recipient: "ops@logistics.example",
-            Subject: $"Shipment {e.TrackingNumber} delayed",
-            Body: $"Shipment {e.ShipmentId} is delayed: {e.Reason}"), ct);
+        var subject = $"Shipment {e.TrackingNumber} delayed";
+        var body = $"Shipment {e.ShipmentId} is delayed: {e.Reason}";
 
-        logger.LogInformation("Queued delay notification for shipment {TrackingNumber}.", e.TrackingNumber);
+        // Fan out: always an email to ops, plus an SMS to the affected customer and to ops.
+        await notifications.PublishAsync(
+            new NotificationMessage("email", _recipients.OpsEmail, subject, body), ct);
+
+        if (!string.IsNullOrWhiteSpace(e.CustomerPhone))
+            await notifications.PublishAsync(
+                new NotificationMessage("sms", e.CustomerPhone, subject, body), ct);
+
+        if (!string.IsNullOrWhiteSpace(_recipients.OpsPhone))
+            await notifications.PublishAsync(
+                new NotificationMessage("sms", _recipients.OpsPhone, subject, body), ct);
+
+        logger.LogInformation("Queued delay notifications for shipment {TrackingNumber}.", e.TrackingNumber);
     }
 }

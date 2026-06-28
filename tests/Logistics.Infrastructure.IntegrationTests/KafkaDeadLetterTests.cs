@@ -53,6 +53,7 @@ public class KafkaDeadLetterTests : IAsyncLifetime
                 SchemaRegistryUrl = schemaRegistryUrl,
                 DeadLetterTopic = "test.events.DLT",
             }),
+            Options.Create(new Logistics.Infrastructure.Messaging.Notifications.NotificationSettings()),
             NullLogger<KafkaIntegrationEventConsumer>.Instance);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));

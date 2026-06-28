@@ -4,7 +4,7 @@ using MediatR;
 
 namespace Logistics.Application.Identity.Commands.Login;
 
-public sealed record LoginCommand(string Email, string Password) : IRequest<Result<AuthResult>>;
+public sealed record LoginCommand(string Email, string Password) : IRequest<Result<LoginResult>>;
 
 public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 {

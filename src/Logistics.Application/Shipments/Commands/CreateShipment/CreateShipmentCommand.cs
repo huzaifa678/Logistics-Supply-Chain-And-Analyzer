@@ -9,6 +9,7 @@ public sealed record CreateShipmentCommand(
     string TrackingNumber,
     string OriginWarehouseId,
     string DestinationWarehouseId,
+    string CustomerPhone,
     double WeightKg,
     TransportMode Mode) : IRequest<Result<string>>;
 
@@ -20,6 +21,10 @@ public sealed class CreateShipmentCommandValidator : AbstractValidator<CreateShi
         RuleFor(x => x.OriginWarehouseId).NotEmpty();
         RuleFor(x => x.DestinationWarehouseId).NotEmpty()
             .NotEqual(x => x.OriginWarehouseId).WithMessage("Origin and destination must differ.");
+        // E.164: a leading '+' and up to 15 digits — the format Twilio's "To" expects.
+        RuleFor(x => x.CustomerPhone).NotEmpty()
+            .Matches(@"^\+[1-9]\d{1,14}$")
+            .WithMessage("Customer phone must be in E.164 format, e.g. +15551234567.");
         RuleFor(x => x.WeightKg).GreaterThan(0);
     }
 }

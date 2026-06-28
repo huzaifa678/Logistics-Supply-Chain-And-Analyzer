@@ -12,6 +12,7 @@ public sealed class UserNode
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
 
@@ -21,11 +22,12 @@ public sealed class UserNode
         Email = u.Email,
         PasswordHash = u.PasswordHash,
         DisplayName = u.DisplayName,
+        Phone = u.Phone,
         Role = u.Role.ToString(),
         CreatedAt = u.CreatedAt.ToString("o")
     };
 
     public User ToDomain() => User.Rehydrate(
-        Id, Email, PasswordHash, DisplayName,
+        Id, Email, PasswordHash, DisplayName, Phone ?? string.Empty,
         Enum.Parse<Role>(Role), DateTimeOffset.Parse(CreatedAt));
 }

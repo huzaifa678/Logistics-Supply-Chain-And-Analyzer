@@ -5,6 +5,7 @@ using Logistics.Application.Common.Messaging;
 using Logistics.Infrastructure.Identity;
 using Logistics.Infrastructure.Messaging;
 using Logistics.Infrastructure.Messaging.Kafka;
+using Logistics.Infrastructure.Messaging.Notifications;
 using Logistics.Infrastructure.Messaging.RabbitMq;
 using Logistics.Infrastructure.Persistence.Neo4j;
 using Logistics.Infrastructure.Persistence.Neo4j.Migrations;
@@ -54,6 +55,7 @@ public static class DependencyInjection
         AddRateLimiting(services, configuration);
         AddMessaging(services, configuration);
         AddWebhooks(services, configuration);
+        AddOtp(services, configuration);
 
         // Versioned graph migrations (schema + data), applied in order on startup.
         services.AddSingleton<IGraphMigration, M0001_InitialSchema>();
@@ -63,8 +65,32 @@ public static class DependencyInjection
         return services;
     }
 
+    private static void AddOtp(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<OtpSettings>(configuration.GetSection(OtpSettings.SectionName));
+        services.AddScoped<IOtpSender, OtpSender>();
+
+        // Use the shared Redis multiplexer (registered by rate limiting) when available so codes are
+        // single-use across instances; otherwise fall back to a process-local store.
+        var rateLimit = configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>();
+        if (rateLimit?.Enabled == true)
+            services.AddSingleton<IOtpStore, RedisOtpStore>();
+        else
+            services.AddSingleton<IOtpStore, InMemoryOtpStore>();
+    }
+
     private static void AddMessaging(IServiceCollection services, IConfiguration configuration)
     {
+        // --- Notification delivery channels (email + SMS) ---
+        services.Configure<NotificationSettings>(configuration.GetSection(NotificationSettings.SectionName));
+        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.Configure<SmsSettings>(configuration.GetSection(SmsSettings.SectionName));
+
+        services.AddTransient<INotificationChannel, EmailNotificationChannel>();
+        // SMS goes over a resilient typed HttpClient (Twilio-compatible REST).
+        services.AddHttpClient<SmsNotificationChannel>().AddStandardResilienceHandler();
+        services.AddTransient<INotificationChannel>(sp => sp.GetRequiredService<SmsNotificationChannel>());
+
         // --- Kafka: integration-event backbone ---
         var kafka = configuration.GetSection(KafkaSettings.SectionName);
         services.Configure<KafkaSettings>(kafka);

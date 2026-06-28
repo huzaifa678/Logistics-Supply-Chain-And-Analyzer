@@ -40,7 +40,7 @@ public class UserRepositoryOrmTests : IAsyncLifetime
     public async Task AddAsync_ThenGetByEmailAndId_RoundTrips()
     {
         var repo = new UserRepository(_graph);
-        var user = User.Create("alice@example.com", "hashed-pw", "Alice", Role.Operator);
+        var user = User.Create("alice@example.com", "hashed-pw", "Alice", "+15551230011", Role.Operator);
 
         var id = await repo.AddAsync(user);
 

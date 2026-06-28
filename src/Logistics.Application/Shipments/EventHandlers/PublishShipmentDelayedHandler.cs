@@ -19,6 +19,6 @@ public sealed class PublishShipmentDelayedHandler(IIntegrationEventPublisher pub
     {
         var e = (ShipmentDelayedEvent)domainEvent;
         return publisher.PublishAsync(
-            new ShipmentDelayedIntegrationEvent(e.ShipmentId, e.TrackingNumber, e.Reason), ct);
+            new ShipmentDelayedIntegrationEvent(e.ShipmentId, e.TrackingNumber, e.Reason, e.CustomerPhone), ct);
     }
 }

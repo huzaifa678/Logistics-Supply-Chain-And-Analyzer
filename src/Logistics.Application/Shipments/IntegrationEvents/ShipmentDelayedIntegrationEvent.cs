@@ -6,4 +6,5 @@ namespace Logistics.Application.Shipments.IntegrationEvents;
 public sealed record ShipmentDelayedIntegrationEvent(
     string ShipmentId,
     string TrackingNumber,
-    string Reason) : IntegrationEvent;
+    string Reason,
+    string CustomerPhone) : IntegrationEvent;

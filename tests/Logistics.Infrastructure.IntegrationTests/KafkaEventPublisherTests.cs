@@ -41,7 +41,7 @@ public class KafkaEventPublisherTests : IAsyncLifetime
 
         using (var publisher = new KafkaEventPublisher(settings, schemaRegistry))
         {
-            await publisher.PublishAsync(new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "weather"));
+            await publisher.PublishAsync(new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "weather", "+15551230007"));
         }
 
         using var consumer = new ConsumerBuilder<string, GenericRecord>(new ConsumerConfig

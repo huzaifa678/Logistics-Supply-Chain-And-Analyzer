@@ -15,7 +15,7 @@ public class AvroSchemaTests
     [Fact]
     public void ShipmentDelayed_RoundTripsThroughAvroBinary()
     {
-        var original = new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "port congestion");
+        var original = new ShipmentDelayedIntegrationEvent("s1", "TRK-1", "port congestion", "+15551230008");
 
         var record = ShipmentDelayedAvro.ToRecord(original);
 

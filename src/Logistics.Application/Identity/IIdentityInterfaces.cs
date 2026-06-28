@@ -54,3 +54,28 @@ public sealed record AuthResult(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
     string RefreshToken);
+
+/// <summary>
+/// Outcome of a password login. When OTP is enforced, <see cref="OtpRequired"/> is true and
+/// <see cref="Tokens"/> is null — the client must call verify-otp to complete sign-in. When OTP
+/// is disabled, tokens are issued immediately.
+/// </summary>
+public sealed record LoginResult(bool OtpRequired, AuthResult? Tokens);
+
+/// <summary>
+/// Short-lived store for one-time login codes, keyed by user email. Codes are stored hashed and
+/// expire automatically; a successful <see cref="ConsumeAsync"/> is single-use.
+/// </summary>
+public interface IOtpStore
+{
+    Task StoreAsync(string email, string codeHash, TimeSpan ttl, CancellationToken ct = default);
+
+    /// <summary>True iff a matching, unexpired code exists; consumes it (single-use) on success.</summary>
+    Task<bool> ConsumeAsync(string email, string codeHash, CancellationToken ct = default);
+}
+
+/// <summary>Delivers a login OTP to the user over the configured channel(s) — email and/or SMS.</summary>
+public interface IOtpSender
+{
+    Task SendAsync(User user, string code, CancellationToken ct = default);
+}

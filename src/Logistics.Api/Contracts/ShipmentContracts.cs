@@ -7,6 +7,7 @@ public sealed record CreateShipmentRequest(
     string TrackingNumber,
     string OriginWarehouseId,
     string DestinationWarehouseId,
+    string CustomerPhone,
     double WeightKg,
     TransportMode Mode);
 
