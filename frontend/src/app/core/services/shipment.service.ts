@@ -8,6 +8,7 @@ export interface CreateShipmentRequest {
   trackingNumber: string;
   originWarehouseId: string;
   destinationWarehouseId: string;
+  customerPhone: string;
   weightKg: number;
   mode: TransportMode;
 }
