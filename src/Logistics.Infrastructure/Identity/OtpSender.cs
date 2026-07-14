@@ -20,10 +20,25 @@ public sealed class OtpSender(
     {
         var body = $"Your one-time login code is {code}. It expires shortly. If you didn't try to sign in, ignore this message.";
 
+        // Email is the primary OTP channel: if it can't be delivered the user has no code, so let
+        // that failure propagate and fail the login.
         await DispatchAsync("email", user.Email, body, ct);
 
+        // SMS is supplementary. A provider failure (bad number, timeout, or an open circuit breaker
+        // when Twilio is down) must not block a login whose code already went out by email — log and
+        // move on. Cancellation still propagates.
         if (!string.IsNullOrWhiteSpace(user.Phone))
-            await DispatchAsync("sms", user.Phone, body, ct);
+        {
+            try
+            {
+                await DispatchAsync("sms", user.Phone, body, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "SMS OTP delivery to {Recipient} failed; the code was still emailed.",
+                    user.Phone);
+            }
+        }
     }
 
     private async Task DispatchAsync(string channelName, string recipient, string body, CancellationToken ct)
