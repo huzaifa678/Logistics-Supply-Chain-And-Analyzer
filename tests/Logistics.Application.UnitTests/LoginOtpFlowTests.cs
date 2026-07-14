@@ -82,9 +82,12 @@ public class LoginOtpFlowTests
         var auth = Options.Create(new AuthSettings { SigningKey = "x", RefreshTokenDays = 7 });
         var otp = Options.Create(new OtpSettings { Enabled = otpEnabled, Length = 6 });
 
+        // Real TokenIssuer over fakes — the shared issuance path both handlers now delegate to.
+        var tokenIssuer = new TokenIssuer(new FakeJwt(), gen, refreshTokens, auth);
+
         var login = new LoginCommandHandler(
-            users, refreshTokens, new FakeHasher(), new FakeJwt(), gen, store, sender, auth, otp);
-        var verify = new VerifyOtpCommandHandler(users, refreshTokens, new FakeJwt(), gen, store, auth);
+            users, new FakeHasher(), gen, store, sender, tokenIssuer, otp);
+        var verify = new VerifyOtpCommandHandler(users, gen, store, tokenIssuer);
         return (login, verify, store, sender, refreshTokens);
     }
 
