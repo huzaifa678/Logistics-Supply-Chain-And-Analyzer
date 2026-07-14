@@ -3,6 +3,7 @@ using FluentValidation;
 using Logistics.Application.Common.Adapters;
 using Logistics.Application.Common.Behaviours;
 using Logistics.Application.Common.Interfaces;
+using Logistics.Application.Identity;
 using Logistics.Domain.Services;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,10 @@ public static class DependencyInjection
         
         // Adds validation to validate commands/queries before hitting their handlers, returning errors if invalid.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+
+        // Shared auth token-issuance policy (access + persisted refresh token), used by the
+        // login and OTP-verification handlers so the logic isn't duplicated across them.
+        services.AddScoped<ITokenIssuer, TokenIssuer>();
 
         // finally adding domain services and their adapters to the persistence layer
         AddDomainServices(services);
