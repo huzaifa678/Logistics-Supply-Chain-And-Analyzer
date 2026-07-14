@@ -79,3 +79,13 @@ public interface IOtpSender
 {
     Task SendAsync(User user, string code, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Issues an authenticated session for a user: a JWT access token plus a freshly minted, hashed,
+/// and persisted refresh token. Centralizes the token-issuance policy shared by password login and
+/// OTP verification so it lives in exactly one place.
+/// </summary>
+public interface ITokenIssuer
+{
+    Task<AuthResult> IssueAsync(User user, CancellationToken ct = default);
+}
