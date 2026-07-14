@@ -9,7 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
   template: `
     <div class="flex min-h-dvh items-center justify-center bg-gray-50 px-4">
       <form
-        [formGroup]="form"
+        [formGroup]="step() === 'credentials' ? form : otpForm"
         (ngSubmit)="submit()"
         class="w-full max-w-sm space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
       >
