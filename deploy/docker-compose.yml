@@ -36,31 +36,18 @@ services:
 
   api:
     image: huzaifagill234/logistics-api
+    env_file:
+      - .env
     build:
       context: ..
       dockerfile: deploy/Dockerfile
     container_name: logistics-api
+    environment:
+      # Loads appsettings.Docker.json, which points Neo4j/Redis/Kafka/RabbitMQ at their
+      # service hostnames. Without this the API uses localhost defaults and can't reach them.
+      ASPNETCORE_ENVIRONMENT: Docker
     ports:
       - "8080:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Docker
-      Auth__BootstrapSecret: "dev-bootstrap-secret-change-me"
-      # --- Notification recipients ---
-      Notifications__OpsEmail: "${Notifications__OpsEmail:-ops@logistics.example}"
-      Notifications__OpsPhone: "${Notifications__OpsPhone:-}"
-      # --- Email (Gmail SMTP) ---
-      Notifications__Email__Enabled: "${Notifications__Email__Enabled:-false}"
-      Notifications__Email__Host: "${Notifications__Email__Host:-smtp.gmail.com}"
-      Notifications__Email__Port: "${Notifications__Email__Port:-587}"
-      Notifications__Email__UseSsl: "${Notifications__Email__UseSsl:-true}"
-      Notifications__Email__Username: "${Notifications__Email__Username:-}"
-      Notifications__Email__Password: "${Notifications__Email__Password:-}"
-      Notifications__Email__FromAddress: "${Notifications__Email__FromAddress:-no-reply@logistics.example}"
-      # --- SMS (Twilio) ---
-      Notifications__Sms__Enabled: "${Notifications__Sms__Enabled:-false}"
-      Notifications__Sms__AccountSid: "${Notifications__Sms__AccountSid:-}"
-      Notifications__Sms__AuthToken: "${Notifications__Sms__AuthToken:-}"
-      Notifications__Sms__FromNumber: "${Notifications__Sms__FromNumber:-}"
     networks:
       - logistics-net
     depends_on:
