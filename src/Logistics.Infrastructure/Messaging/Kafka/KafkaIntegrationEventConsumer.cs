@@ -1,6 +1,7 @@
 using System.Text;
 using Avro.Generic;
 using Confluent.Kafka;
+using Confluent.Kafka.Admin;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
@@ -45,10 +46,12 @@ public sealed class KafkaIntegrationEventConsumer(
         using var consumer = new ConsumerBuilder<string, GenericRecord>(config)
             .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
             .Build();
-        // Raw producer for the dead-letter topic: forwards poison/failed messages as bytes.
+            
         using var deadLetter = new ProducerBuilder<byte[], byte[]>(
             new ProducerConfig { BootstrapServers = _settings.BootstrapServers }).Build();
         var dltTopic = _settings.ResolvedDeadLetterTopic;
+
+        await EnsureTopicsAsync(_settings.Topic, dltTopic, stoppingToken);
 
         consumer.Subscribe(_settings.Topic);
         logger.LogInformation("Kafka (Avro) consumer subscribed to {Topic}.", _settings.Topic);
@@ -64,20 +67,30 @@ public sealed class KafkaIntegrationEventConsumer(
                 }
                 catch (ConsumeException ex)
                 {
+                    var cr = ex.ConsumerRecord;
+
+                    // Broker/transport errors (e.g. topic momentarily unavailable, leader election)
+                    // carry no message payload — they are NOT poison messages. Dead-lettering them
+                    // would produce to a topic that may itself be unavailable and crash the loop, so
+                    // just log and back off; librdkafka retries the fetch.
+                    if (cr?.Message?.Value is null)
+                    {
+                        logger.LogWarning(ex, "Kafka consume error at {Offset}; retrying",
+                            cr?.TopicPartitionOffset);
+                        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+                        continue;
+                    }
+
                     // Undeserializable (poison) message → dead-letter the raw bytes and skip past it
                     // so the partition isn't blocked forever.
-                    var cr = ex.ConsumerRecord;
                     logger.LogError(ex, "Kafka deserialization failed at {Offset}; dead-lettering",
-                        cr?.TopicPartitionOffset);
-                    if (cr is not null)
+                        cr.TopicPartitionOffset);
+                    await DeadLetterAsync(deadLetter, dltTopic, cr.Message.Key, cr.Message.Value,
+                        ex.Error.Reason, cr.TopicPartitionOffset, stoppingToken);
+                    consumer.Commit(new[]
                     {
-                        await DeadLetterAsync(deadLetter, dltTopic, cr.Message?.Key, cr.Message?.Value,
-                            ex.Error.Reason, cr.TopicPartitionOffset, stoppingToken);
-                        consumer.Commit(new[]
-                        {
-                            new TopicPartitionOffset(cr.TopicPartition, new Offset(cr.Offset.Value + 1)),
-                        });
-                    }
+                        new TopicPartitionOffset(cr.TopicPartition, new Offset(cr.Offset.Value + 1)),
+                    });
                     continue;
                 }
 
@@ -106,6 +119,31 @@ public sealed class KafkaIntegrationEventConsumer(
         finally
         {
             consumer.Close();
+        }
+    }
+
+    /// <summary>
+    /// Idempotently create the given topics. Existing topics are left untouched
+    /// (TopicAlreadyExists is ignored), so this is safe to run on every startup.
+    /// </summary>
+    private async Task EnsureTopicsAsync(string topic, string deadLetterTopic, CancellationToken ct)
+    {
+        using var admin = new AdminClientBuilder(
+            new AdminClientConfig { BootstrapServers = _settings.BootstrapServers }).Build();
+
+        var specs = new[] { topic, deadLetterTopic }
+            .Select(name => new TopicSpecification { Name = name, NumPartitions = 1, ReplicationFactor = 1 })
+            .ToList();
+
+        try
+        {
+            await admin.CreateTopicsAsync(specs);
+            logger.LogInformation("Ensured Kafka topics: {Topic}, {DeadLetterTopic}.", topic, deadLetterTopic);
+        }
+        catch (CreateTopicsException ex) when (ex.Results.All(r =>
+                   r.Error.Code is ErrorCode.NoError or ErrorCode.TopicAlreadyExists))
+        {
+            // All topics already exist (or were just created) — nothing to do.
         }
     }
 
