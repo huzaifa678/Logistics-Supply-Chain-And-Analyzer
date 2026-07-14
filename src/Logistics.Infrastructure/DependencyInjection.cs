@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Logistics.Application.Common.Interfaces;
 using Logistics.Application.Identity;
 using Confluent.SchemaRegistry;
@@ -84,11 +85,24 @@ public static class DependencyInjection
         // --- Notification delivery channels (email + SMS) ---
         services.Configure<NotificationSettings>(configuration.GetSection(NotificationSettings.SectionName));
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
-        services.Configure<SmsSettings>(configuration.GetSection(SmsSettings.SectionName));
+       
+        services.AddOptions<SmsSettings>()
+            .Bind(configuration.GetSection(SmsSettings.SectionName))
+            .Validate(s => !s.Enabled || Regex.IsMatch(s.FromNumber, @"^\+[1-9]\d{1,14}$"),
+                "Notifications:Sms:FromNumber must be E.164 (e.g. +15551234567) when SMS is enabled.")
+            .Validate(s => !s.Enabled || (!string.IsNullOrWhiteSpace(s.AccountSid) && !string.IsNullOrWhiteSpace(s.AuthToken)),
+                "Notifications:Sms:AccountSid and AuthToken are required when SMS is enabled.")
+            .ValidateOnStart();
 
         services.AddTransient<INotificationChannel, EmailNotificationChannel>();
-        // SMS goes over a resilient typed HttpClient (Twilio-compatible REST).
-        services.AddHttpClient<SmsNotificationChannel>().AddStandardResilienceHandler();
+        services.AddHttpClient<SmsNotificationChannel>().AddStandardResilienceHandler(o =>
+        {
+            o.CircuitBreaker.MinimumThroughput = 10;                       // open after ~10 calls in the window
+            o.CircuitBreaker.SamplingDuration  = TimeSpan.FromSeconds(60);
+            o.CircuitBreaker.FailureRatio      = 0.5;                      // half failing → open
+            o.CircuitBreaker.BreakDuration     = TimeSpan.FromSeconds(30);
+            o.Retry.MaxRetryAttempts           = 2;                        // don't hammer a failing provider
+        });
         services.AddTransient<INotificationChannel>(sp => sp.GetRequiredService<SmsNotificationChannel>());
 
         // --- Kafka: integration-event backbone ---
@@ -152,10 +166,6 @@ public static class DependencyInjection
         var settings = section.Get<WebhookSettings>() ?? new WebhookSettings();
         var attempt = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 1));
 
-        // Typed client for outbound webhooks. The standard resilience handler adds retry with
-        // backoff + jitter, a circuit breaker and timeouts — the right place for it, since this is
-        // the only call to an external, uncontrolled endpoint. HttpClient.Timeout is left infinite
-        // so the resilience pipeline governs all timing.
         services.AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
                 client.Timeout = Timeout.InfiniteTimeSpan)
             .AddStandardResilienceHandler(options =>
