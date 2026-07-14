@@ -1,7 +1,5 @@
 using Logistics.Application.Common.Models;
 using MediatR;
-using Microsoft.Extensions.Options;
-using DomainRefreshToken = Logistics.Domain.Identity.RefreshToken;
 
 namespace Logistics.Application.Identity.Commands.VerifyOtp;
 
@@ -11,14 +9,10 @@ namespace Logistics.Application.Identity.Commands.VerifyOtp;
 /// </summary>
 public sealed class VerifyOtpCommandHandler(
     IUserRepository users,
-    IRefreshTokenRepository refreshTokens,
-    IJwtTokenGenerator jwt,
     ISecureTokenGenerator tokenGenerator,
     IOtpStore otpStore,
-    IOptions<AuthSettings> authOptions) : IRequestHandler<VerifyOtpCommand, Result<AuthResult>>
+    ITokenIssuer tokenIssuer) : IRequestHandler<VerifyOtpCommand, Result<AuthResult>>
 {
-    private readonly AuthSettings _auth = authOptions.Value;
-
     public async Task<Result<AuthResult>> Handle(VerifyOtpCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
@@ -31,12 +25,6 @@ public sealed class VerifyOtpCommandHandler(
         if (user is null)
             return Result<AuthResult>.Failure("Invalid or expired code.");
 
-        var access = jwt.Generate(user);
-
-        var rawRefresh = tokenGenerator.GenerateRawToken();
-        var refresh = DomainRefreshToken.Issue(user.Id, tokenGenerator.Hash(rawRefresh), _auth.RefreshTokenLifetime);
-        await refreshTokens.AddAsync(refresh, ct);
-
-        return Result<AuthResult>.Success(new AuthResult(access.Value, access.ExpiresAtUtc, rawRefresh));
+        return Result<AuthResult>.Success(await tokenIssuer.IssueAsync(user, ct));
     }
 }
